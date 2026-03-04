@@ -401,5 +401,5 @@ export default function App() {
         {activeTab === 'recap' && ['admin', 'headmaster', 'dinas', 'super_admin'].includes(user.role) && <RecapPanel user={user} />}
       </main>
     </div>
-  );
+  ); 
 }

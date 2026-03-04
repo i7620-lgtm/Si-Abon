@@ -43,12 +43,22 @@ export const api = {
     });
   },
 
-  register: async (data: { name: string, office_id: number }): Promise<User> => {
+  register: async (data: { name: string, office_id?: number, email: string, supabase_id: string, new_office_name?: string }): Promise<User> => {
     const res = await fetch('/api/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
+    return res.json();
+  },
+
+  loginSync: async (email: string): Promise<User> => {
+    const res = await fetch('/api/login-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) throw new Error('User not found');
     return res.json();
   },
 

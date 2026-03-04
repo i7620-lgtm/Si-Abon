@@ -82,6 +82,7 @@ db.exec(`
 
 // Migration: Add office_id to users if missing
 try {
+  // Migration for users table
   const tableInfo = db.prepare("PRAGMA table_info(users)").all() as any[];
   const hasOfficeId = tableInfo.some(col => col.name === 'office_id');
   if (!hasOfficeId) {
@@ -102,6 +103,16 @@ try {
   if (!hasLeaveQuota) {
     db.exec("ALTER TABLE users ADD COLUMN leave_quota INTEGER DEFAULT 12");
     console.log("Migrated: Added leave_quota to users table");
+  }
+  const hasEmail = tableInfo.some(col => col.name === 'email');
+  if (!hasEmail) {
+    db.exec("ALTER TABLE users ADD COLUMN email TEXT");
+    console.log("Migrated: Added email to users table");
+  }
+  const hasSupabaseId = tableInfo.some(col => col.name === 'supabase_id');
+  if (!hasSupabaseId) {
+    db.exec("ALTER TABLE users ADD COLUMN supabase_id TEXT");
+    console.log("Migrated: Added supabase_id to users table");
   }
 
   // Migration for leave_requests
@@ -134,12 +145,13 @@ db.exec(`
   VALUES (1, 'Kantor Pusat', -6.2088, 106.8456, 100, '06:30', '08:00', '16:00', '18:00');
 
   -- Seed Users if not exists (Updated with office_id)
-  INSERT OR IGNORE INTO users (id, name, role, department, office_id) VALUES 
-  (1, 'Admin User', 'admin', 'IT', 1),
-  (2, 'Budi Santoso', 'employee', 'Teaching', 1),
-  (3, 'Siti Aminah', 'employee', 'Administration', 1),
-  (4, 'Kepala Sekolah', 'headmaster', 'Management', 1),
-  (5, 'Pengawas Dinas', 'dinas', 'External', 1);
+  INSERT OR IGNORE INTO users (id, name, role, department, office_id, email) VALUES 
+  (1, 'Admin User', 'admin', 'IT', 1, 'admin@example.com'),
+  (2, 'Budi Santoso', 'employee', 'Teaching', 1, 'budi@example.com'),
+  (3, 'Siti Aminah', 'employee', 'Administration', 1, 'siti@example.com'),
+  (4, 'Kepala Sekolah', 'headmaster', 'Management', 1, 'kepsek@example.com'),
+  (5, 'Pengawas Dinas', 'dinas', 'External', 1, 'dinas@example.com'),
+  (6, 'Super Admin', 'super_admin', 'Developer', NULL, 'superadmin@example.com');
 `);
 
 async function startServer() {
@@ -216,14 +228,31 @@ async function startServer() {
 
   // Register User
   app.post('/api/register', (req, res) => {
-    const { name, office_id } = req.body;
+    const { name, office_id, email, supabase_id, new_office_name } = req.body;
     
-    // Check if office has any users
-    const count = db.prepare('SELECT COUNT(*) as count FROM users WHERE office_id = ?').get(office_id) as { count: number };
-    const role = count.count === 0 ? 'admin' : 'employee';
+    let finalOfficeId = office_id;
+
+    // Handle new office creation
+    if (new_office_name) {
+      const stmt = db.prepare(`
+        INSERT INTO offices (name, lat, lng, radius_meters, start_in_time, end_in_time, start_out_time, end_out_time)
+        VALUES (?, -6.2088, 106.8456, 100, '06:30', '08:00', '16:00', '18:00')
+      `);
+      const info = stmt.run(new_office_name);
+      finalOfficeId = info.lastInsertRowid;
+    }
+
+    // Determine role
+    let role = 'employee';
+    if (new_office_name) {
+      role = 'admin';
+    } else if (finalOfficeId) {
+       const count = db.prepare('SELECT COUNT(*) as count FROM users WHERE office_id = ?').get(finalOfficeId) as { count: number };
+       if (count.count === 0) role = 'admin';
+    }
     
-    const stmt = db.prepare('INSERT INTO users (name, role, office_id) VALUES (?, ?, ?)');
-    const info = stmt.run(name, role, office_id);
+    const stmt = db.prepare('INSERT INTO users (name, role, office_id, email, supabase_id) VALUES (?, ?, ?, ?, ?)');
+    const info = stmt.run(name, role, finalOfficeId, email, supabase_id);
     
     // Return the new user
     const newUser = db.prepare(`
@@ -234,6 +263,23 @@ async function startServer() {
     `).get(info.lastInsertRowid);
     
     res.json(newUser);
+  });
+
+  // Sync/Login User
+  app.post('/api/login-sync', (req, res) => {
+    const { email } = req.body;
+    const user = db.prepare(`
+      SELECT u.*, o.name as office_name 
+      FROM users u 
+      LEFT JOIN offices o ON u.office_id = o.id
+      WHERE u.email = ?
+    `).get(email);
+
+    if (user) {
+      res.json(user);
+    } else {
+      res.status(404).json({ error: 'User not found' });
+    }
   });
 
   // Submit Special Attendance (Admin)

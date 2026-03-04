@@ -1,13 +1,15 @@
 export interface User {
   id: number;
   name: string;
-  role: 'employee' | 'admin' | 'headmaster' | 'dinas';
+  role: 'employee' | 'admin' | 'headmaster' | 'dinas' | 'super_admin';
   department: string;
   office_id?: number;
   office_name?: string;
   nip?: string;
   photo_url?: string;
   leave_quota?: number;
+  email?: string;
+  supabase_id?: string;
 }
 
 export interface LeaveRequest {

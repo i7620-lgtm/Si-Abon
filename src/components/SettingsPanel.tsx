@@ -48,12 +48,20 @@ export default function SettingsPanel() {
   };
 
   const handleDeleteOffice = async (id: number) => {
+    // Check if any users are assigned to this office locally first
+    const assignedUsers = users.filter(u => u.office_id === id);
+    if (assignedUsers.length > 0) {
+      alert(`Tidak dapat menghapus kantor ini karena masih ada ${assignedUsers.length} pegawai yang terdaftar di kantor ini. Pindahkan pegawai tersebut terlebih dahulu.`);
+      return;
+    }
+
     if (confirm('Apakah Anda yakin ingin menghapus kantor ini?')) {
       try {
         await api.deleteOffice(id);
         loadData();
       } catch (e: any) {
-        alert(e.message);
+        console.error('Delete office error:', e);
+        alert('Gagal menghapus kantor. Pastikan Anda sudah menjalankan SQL Policy untuk DELETE di Supabase.');
       }
     }
   };

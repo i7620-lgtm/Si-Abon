@@ -14,7 +14,7 @@ import { supabase } from './lib/supabase';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>([]); // Keep for demo/fallback
+  const [users, setUsers] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showRegister, setShowRegister] = useState(false);
   const [offices, setOffices] = useState<Office[]>([]);
@@ -132,12 +132,6 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  };
-
-  // Demo Login (Fallback)
-  const handleDemoLogin = (u: User) => {
-    setUser(u);
-    setActiveTab('dashboard');
   };
 
   if (!user) {
@@ -351,28 +345,6 @@ export default function App() {
               Daftar Pegawai Baru
             </button>
           </div>
-
-          {/* Demo Users List (Hidden in production ideally, but kept for testing) */}
-          <div className="mt-8">
-            <p className="text-xs text-center text-slate-400 mb-2">Demo Accounts (Local DB)</p>
-            <div className="space-y-2 max-h-[150px] overflow-y-auto">
-              {users.map(u => (
-                <button
-                  key={u.id}
-                  onClick={() => handleDemoLogin(u)}
-                  className="w-full p-2 flex items-center gap-3 bg-slate-50 hover:bg-emerald-50 border border-slate-100 rounded-lg text-left"
-                >
-                  <div className="w-6 h-6 rounded-full bg-white flex items-center justify-center text-slate-500 text-xs font-bold">
-                    {u.name.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-bold text-slate-800 truncate">{u.name}</p>
-                    <p className="text-[10px] text-slate-500 truncate">{u.role}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
     );
@@ -401,5 +373,5 @@ export default function App() {
         {activeTab === 'recap' && ['admin', 'headmaster', 'dinas', 'super_admin'].includes(user.role) && <RecapPanel user={user} />}
       </main>
     </div>
-  ); 
+  );
 }

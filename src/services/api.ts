@@ -260,7 +260,7 @@ export const api = {
   getCorrections: async (userId?: number): Promise<any[]> => {
     let query = supabase
       .from('attendance_corrections')
-      .select('*, users(name, role)')
+      .select('*, users!user_id(name, role)')
       .order('created_at', { ascending: false });
 
     if (userId) query = query.eq('user_id', userId);

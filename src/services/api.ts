@@ -59,7 +59,10 @@ export const api = {
         end_out_time: '18:00'
       }]).select().single();
       
-      if (officeError) throw officeError;
+      if (officeError) {
+        console.error('Office creation error:', officeError);
+        throw new Error(`Gagal membuat kantor: ${officeError.message}`);
+      }
       finalOfficeId = newOffice.id;
     }
 
@@ -84,7 +87,10 @@ export const api = {
       supabase_id: data.supabase_id
     }]).select('*, offices(name)').single();
 
-    if (userError) throw userError;
+    if (userError) {
+      console.error('User registration error:', userError);
+      throw new Error(`Gagal mendaftarkan user: ${userError.message}`);
+    }
 
     return {
       ...newUser,

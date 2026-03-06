@@ -93,6 +93,9 @@ export default function App() {
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
+        options: {
+          redirectTo: 'https://ewvokiymjxwrjxcmtskz.supabase.co/auth/v1/callback'
+        }
       });
       if (error) throw error;
     } catch (e: any) {

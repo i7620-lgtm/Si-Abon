@@ -230,7 +230,7 @@ export default function SettingsPanel() {
                   };
 
                   const updateDay = (field: string, value: any) => {
-                    const newSchedule = { ...editingOffice.schedule } || {};
+                    const newSchedule = { ...(editingOffice.schedule || {}) };
                     newSchedule[dayIdx] = { ...schedule, [field]: value };
                     setEditingOffice({ ...editingOffice, schedule: newSchedule });
                   };

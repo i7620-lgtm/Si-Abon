@@ -30,22 +30,21 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
       
       setTodayLog(todayLogs);
       
-      // Calculate compliance (number of late arrivals)
-      const lates = allLogs.filter(l => l.is_late && l.type === 'IN').length;
-      setLateCount(lates);
+      // Calculate compliance (number of late arrivals and early departures)
+      const nonCompliant = allLogs.filter(l => l.is_late).length;
+      setLateCount(nonCompliant);
 
       if (isAdmin) {
         const leaves = await api.getLeaves();
         setPendingLeaves(leaves.filter((l: any) => l.status === 'pending'));
 
         // Calculate all compliance
-        // In a real app, this should be an aggregated API call
         const users = await api.getUsers();
         const complianceData = [];
         for (const u of users) {
            const uLogs = await api.getAttendance({ user_id: u.id });
-           const uLates = uLogs.filter(l => l.is_late && l.type === 'IN').length;
-           complianceData.push({ name: u.name, late: uLates });
+           const uNonCompliant = uLogs.filter(l => l.is_late).length;
+           complianceData.push({ name: u.name, late: uNonCompliant });
         }
         setAllCompliance(complianceData.sort((a, b) => b.late - a.late).slice(0, 5));
       }

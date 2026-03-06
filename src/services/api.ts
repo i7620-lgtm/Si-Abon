@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { User, Office, AttendanceLog, LeaveRequest, CorrectionRequest } from '../types';
+import { User, Office, AttendanceLog, LeaveRequest, AttendanceCorrection } from '../types';
 
 export const api = {
   getOffices: async (): Promise<Office[]> => {
@@ -139,6 +139,7 @@ export const api = {
     lat: number;
     lng: number;
     photo_url: string;
+    notes?: string;
   }): Promise<void> => {
     // Fetch user office settings for validation
     const { data: user, error: userError } = await supabase
@@ -226,7 +227,8 @@ export const api = {
       lat: data.lat,
       lng: data.lng,
       photo_url: data.photo_url,
-      is_late: is_late
+      is_late: is_late,
+      notes: data.notes
     }]);
 
     if (error) throw error;

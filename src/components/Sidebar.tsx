@@ -52,7 +52,7 @@ export default function Sidebar({ user, onLogout, activeTab, setActiveTab, onUse
 
   return (
     <>
-      <div className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-100 flex flex-col h-auto md:h-full flex-shrink-0">
+      <div className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-100 flex flex-col h-auto md:h-full flex-shrink-0 print:hidden">
         <div className="p-4 md:p-6 border-b border-slate-50 flex justify-between items-center md:block">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-emerald-800 flex items-center gap-2">

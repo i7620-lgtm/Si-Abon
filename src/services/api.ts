@@ -151,37 +151,54 @@ export const api = {
 
     const office = user.offices;
     const now = new Date();
+    const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)
+    
+    // Use daily schedule if available, otherwise fallback to default office times
+    let startIn = office.start_in_time;
+    let endIn = office.end_in_time;
+    let startOut = office.start_out_time;
+    let endOut = office.end_out_time;
+    let isOff = false;
+
+    if (office.schedule && office.schedule[dayOfWeek]) {
+      const daySchedule = office.schedule[dayOfWeek];
+      startIn = daySchedule.start_in;
+      endIn = daySchedule.end_in;
+      startOut = daySchedule.start_out;
+      endOut = daySchedule.end_out;
+      isOff = daySchedule.is_off || false;
+    }
+
+    if (isOff) {
+      throw new Error('Hari ini adalah hari libur untuk kantor Anda.');
+    }
+
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
     const seconds = now.getSeconds().toString().padStart(2, '0');
-    const currentTime = `${hours}:${minutes}:${seconds}`;
     const currentTimeShort = `${hours}:${minutes}`;
 
     let is_late = false;
 
     if (data.type === 'IN') {
-       // Normal: start_in_time to end_in_time
-       // Late: end_in_time to 12:00
-       if (currentTimeShort < office.start_in_time) {
-         throw new Error(`Absen Masuk belum dimulai (Mulai: ${office.start_in_time})`);
+       if (currentTimeShort < startIn) {
+         throw new Error(`Absen Masuk belum dimulai (Mulai: ${startIn})`);
        }
        if (currentTimeShort > '12:00') {
          throw new Error(`Batas akhir Absen Masuk adalah pukul 12:00`);
        }
-       if (currentTimeShort > office.end_in_time) {
+       if (currentTimeShort > endIn) {
          is_late = true;
        }
     } else if (data.type === 'OUT') {
-       // Early: 12:01 to start_out_time
-       // Normal: start_out_time to end_out_time
        if (currentTimeShort <= '12:00') {
          throw new Error(`Absen Pulang baru bisa dilakukan setelah pukul 12:00`);
        }
-       if (currentTimeShort > office.end_out_time) {
-         throw new Error(`Batas akhir Absen Pulang adalah pukul ${office.end_out_time}`);
+       if (currentTimeShort > endOut) {
+         throw new Error(`Batas akhir Absen Pulang adalah pukul ${endOut}`);
        }
-       if (currentTimeShort < office.start_out_time) {
-         is_late = true; // Recorded as "Mendahului" in logic, but using is_late flag
+       if (currentTimeShort < startOut) {
+         is_late = true;
        }
     }
 

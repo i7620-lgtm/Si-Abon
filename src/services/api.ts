@@ -185,6 +185,24 @@ export const api = {
        }
     }
 
+    // Prevent duplicate attendance for the same type on the same day
+    if (data.type === 'IN' || data.type === 'OUT') {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: existing, error: checkError } = await supabase
+        .from('attendance')
+        .select('id')
+        .eq('user_id', data.user_id)
+        .eq('type', data.type)
+        .gte('timestamp', `${today}T00:00:00`)
+        .lte('timestamp', `${today}T23:59:59`)
+        .maybeSingle();
+      
+      if (checkError) throw checkError;
+      if (existing) {
+        throw new Error(`Anda sudah melakukan Absen ${data.type === 'IN' ? 'Masuk' : 'Pulang'} hari ini.`);
+      }
+    }
+
     const { error } = await supabase.from('attendance').insert([{
       user_id: data.user_id,
       type: data.type,
@@ -204,12 +222,12 @@ export const api = {
   }): Promise<AttendanceLog[]> => {
     let query = supabase
       .from('attendance')
-      .select('*, users(name, role, department)')
+      .select('*, users(name, role, department, offices(name))')
       .order('timestamp', { ascending: false });
 
     if (filters.user_id) query = query.eq('user_id', filters.user_id);
-    if (filters.start_date) query = query.gte('timestamp', filters.start_date);
-    if (filters.end_date) query = query.lte('timestamp', filters.end_date);
+    if (filters.start_date && filters.start_date !== '') query = query.gte('timestamp', `${filters.start_date}T00:00:00`);
+    if (filters.end_date && filters.end_date !== '') query = query.lte('timestamp', `${filters.end_date}T23:59:59`);
 
     const { data, error } = await query;
     if (error) throw error;
@@ -218,7 +236,8 @@ export const api = {
       ...a,
       name: a.users?.name,
       role: a.users?.role,
-      department: a.users?.department
+      department: a.users?.department,
+      office_name: a.users?.offices?.name
     }));
   },
 

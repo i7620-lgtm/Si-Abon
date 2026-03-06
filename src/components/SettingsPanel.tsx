@@ -293,37 +293,64 @@ export default function SettingsPanel({ onUserUpdate }: { onUserUpdate?: () => v
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        {offices.map(office => (
-          <div key={office.id} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="font-bold text-slate-800">{office.name}</h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  {office.lat.toFixed(4)}, {office.lng.toFixed(4)} • Radius {office.radius_meters}m
-                </p>
+        {offices.map(office => {
+          const now = new Date();
+          const dayOfWeek = now.getDay();
+          let startIn = office.start_in_time;
+          let endIn = office.end_in_time;
+          let startOut = office.start_out_time;
+          let endOut = office.end_out_time;
+          let isOff = false;
+
+          if (office.schedule && office.schedule[dayOfWeek]) {
+            const daySchedule = office.schedule[dayOfWeek];
+            startIn = daySchedule.start_in || startIn;
+            endIn = daySchedule.end_in || endIn;
+            startOut = daySchedule.start_out || startOut;
+            endOut = daySchedule.end_out || endOut;
+            isOff = daySchedule.is_off || false;
+          }
+
+          return (
+            <div key={office.id} className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+              <div className="flex justify-between items-start mb-4">
+                <div>
+                  <h3 className="font-bold text-slate-800">{office.name}</h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {office.lat.toFixed(4)}, {office.lng.toFixed(4)} • Radius {office.radius_meters}m
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => startEdit(office)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
+                    <Edit2 size={16} />
+                  </button>
+                  <button onClick={() => handleDeleteOffice(office.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-2">
-                <button onClick={() => startEdit(office)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
-                  <Edit2 size={16} />
-                </button>
-                <button onClick={() => handleDeleteOffice(office.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
-                  <Trash2 size={16} />
-                </button>
+              
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="bg-emerald-50 p-3 rounded-lg">
+                  <p className="text-xs text-emerald-600 font-medium mb-1">Jam Masuk</p>
+                  {isOff ? (
+                    <p className="font-bold text-red-600">Libur</p>
+                  ) : (
+                    <p className="font-mono text-emerald-900">{startIn} - {endIn}</p>
+                  )}
+                </div>
+                <div className="bg-orange-50 p-3 rounded-lg">
+                  <p className="text-xs text-orange-600 font-medium mb-1">Jam Pulang</p>
+                  {isOff ? (
+                    <p className="font-bold text-red-600">Libur</p>
+                  ) : (
+                    <p className="font-mono text-orange-900">{startOut} - {endOut}</p>
+                  )}
+                </div>
               </div>
             </div>
-            
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div className="bg-emerald-50 p-3 rounded-lg">
-                <p className="text-xs text-emerald-600 font-medium mb-1">Jam Masuk</p>
-                <p className="font-mono text-emerald-900">{office.start_in_time} - {office.end_in_time}</p>
-              </div>
-              <div className="bg-orange-50 p-3 rounded-lg">
-                <p className="text-xs text-orange-600 font-medium mb-1">Jam Pulang</p>
-                <p className="font-mono text-orange-900">{office.start_out_time} - {office.end_out_time}</p>
-              </div>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <h2 className="text-xl font-bold text-slate-800 mb-6">Penempatan & Manajemen Pegawai</h2>

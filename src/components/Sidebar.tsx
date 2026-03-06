@@ -1,27 +1,63 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LogOut, MapPin, Clock, History, Settings as SettingsIcon, FileText, User as UserIcon, X, Camera, LayoutDashboard, CalendarDays, ClipboardPen, FileSpreadsheet } from 'lucide-react';
-import { User } from '../types';
+import { User, Office } from '../types';
 import { api } from '../services/api';
 import CameraCapture from './CameraCapture';
 
 interface SidebarProps {
   user: User;
+  offices: Office[];
   onLogout: () => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
   onUserUpdate: () => void;
 }
 
-export default function Sidebar({ user, onLogout, activeTab, setActiveTab, onUserUpdate }: SidebarProps) {
+export default function Sidebar({ user, offices, onLogout, activeTab, setActiveTab, onUserUpdate }: SidebarProps) {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editName, setEditName] = useState(user.name);
   const [editNip, setEditNip] = useState(user.nip || '');
   const [editPhoto, setEditPhoto] = useState(user.photo_url || '');
   const [showCamera, setShowCamera] = useState(false);
+  const [attendanceIcon, setAttendanceIcon] = useState<'IN' | 'OUT'>('IN');
+
+  useEffect(() => {
+    const calculateIcon = () => {
+      const mainOffice = offices.find(o => o.id === user.office_id);
+      const now = new Date();
+      const hours = now.getHours().toString().padStart(2, '0');
+      const minutes = now.getMinutes().toString().padStart(2, '0');
+      const currentTime = `${hours}:${minutes}`;
+      
+      if (mainOffice) {
+         const endInParts = mainOffice.end_in_time.split(':').map(Number);
+         const startOutParts = mainOffice.start_out_time.split(':').map(Number);
+         
+         const endInMinutes = endInParts[0] * 60 + endInParts[1];
+         const startOutMinutes = startOutParts[0] * 60 + startOutParts[1];
+         const currentMinutes = now.getHours() * 60 + now.getMinutes();
+         
+         // Calculate midpoint: end_in + (start_out - end_in) / 2
+         const midPoint = endInMinutes + ((startOutMinutes - endInMinutes) / 2);
+         
+         if (currentMinutes >= midPoint) {
+            setAttendanceIcon('OUT');
+         } else {
+            setAttendanceIcon('IN');
+         }
+      } else {
+         setAttendanceIcon(currentTime > '12:00' ? 'OUT' : 'IN');
+      }
+    };
+
+    calculateIcon();
+    const interval = setInterval(calculateIcon, 60000);
+    return () => clearInterval(interval);
+  }, [user.office_id, offices]);
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
-    { id: 'attendance', label: 'Absensi', icon: Clock, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
+    { id: 'attendance', label: attendanceIcon === 'OUT' ? 'Absen Pulang' : 'Absen Masuk', icon: attendanceIcon === 'OUT' ? LogOut : Clock, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
     { id: 'correction', label: 'Lupa Absen', icon: ClipboardPen, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
     { id: 'leave', label: 'Cuti', icon: CalendarDays, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
     { id: 'history', label: 'Riwayat', icon: History, roles: ['employee'] },

@@ -216,15 +216,37 @@ export default function AttendancePanel({ user }: { user: User }) {
       <div className="grid grid-cols-1 gap-4">
         {(() => {
           const now = new Date();
+          const dayOfWeek = now.getDay();
           const hours = now.getHours().toString().padStart(2, '0');
           const minutes = now.getMinutes().toString().padStart(2, '0');
           const currentTime = `${hours}:${minutes}`;
           
           let currentType: 'IN' | 'OUT' = 'IN';
 
+          // Get effective schedule for today
+          let startIn = '00:00';
+          let endIn = '00:00';
+          let startOut = '00:00';
+          let endOut = '00:00';
+
           if (selectedOffice) {
-             const endInParts = selectedOffice.end_in_time.split(':').map(Number);
-             const startOutParts = selectedOffice.start_out_time.split(':').map(Number);
+             startIn = selectedOffice.start_in_time;
+             endIn = selectedOffice.end_in_time;
+             startOut = selectedOffice.start_out_time;
+             endOut = selectedOffice.end_out_time;
+
+             if (selectedOffice.schedule && selectedOffice.schedule[dayOfWeek]) {
+                const daySchedule = selectedOffice.schedule[dayOfWeek];
+                if (!daySchedule.is_off) {
+                   startIn = daySchedule.start_in || startIn;
+                   endIn = daySchedule.end_in || endIn;
+                   startOut = daySchedule.start_out || startOut;
+                   endOut = daySchedule.end_out || endOut;
+                }
+             }
+
+             const endInParts = endIn.split(':').map(Number);
+             const startOutParts = startOut.split(':').map(Number);
              
              const endInMinutes = endInParts[0] * 60 + endInParts[1];
              const startOutMinutes = startOutParts[0] * 60 + startOutParts[1];
@@ -254,12 +276,12 @@ export default function AttendancePanel({ user }: { user: User }) {
             statusMessage = `Anda sudah melakukan Absen ${currentType === 'IN' ? 'Masuk' : 'Pulang'} hari ini.`;
             statusColor = "text-emerald-600 bg-emerald-50 border-emerald-100";
           } else if (currentType === 'IN' && selectedOffice) {
-            if (currentTime > selectedOffice.end_in_time) {
+            if (currentTime > endIn) {
               statusMessage = "Anda terlambat! Absensi akan tetap dicatat dengan status TERLAMBAT.";
               statusColor = "text-red-600 bg-red-50 border-red-100";
             }
           } else if (currentType === 'OUT' && selectedOffice) {
-             if (currentTime < selectedOffice.start_out_time) {
+             if (currentTime < startOut) {
                statusMessage = "Anda absen mendahului waktu! Absensi akan tetap dicatat dengan status MENDAHULUI.";
                statusColor = "text-orange-600 bg-orange-50 border-orange-100";
              }
@@ -297,7 +319,7 @@ export default function AttendancePanel({ user }: { user: User }) {
                   <span className="text-2xl font-bold">{currentType === 'OUT' ? 'Absen Pulang' : 'Absen Masuk'}</span>
                   {selectedOffice && (
                     <span className="text-sm opacity-90 mt-2 font-medium bg-black/10 px-3 py-1 rounded-full">
-                      {currentType === 'OUT' ? `${selectedOffice.start_out_time} - ${selectedOffice.end_out_time}` : `${selectedOffice.start_in_time} - ${selectedOffice.end_in_time}`}
+                      {currentType === 'OUT' ? `${startOut} - ${endOut}` : `${startIn} - ${endIn}`}
                     </span>
                   )}
                 </button>

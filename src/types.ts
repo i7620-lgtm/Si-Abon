@@ -64,4 +64,5 @@ export interface AttendanceLog {
   photo_url: string;
   is_late: boolean;
   notes?: string;
+  office_name?: string;
 }

@@ -27,7 +27,7 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
 
   return (
     <div className="flex flex-col items-center gap-4 w-full">
-      <div className="relative w-full max-w-sm aspect-[4/3] bg-black rounded-2xl overflow-hidden shadow-lg">
+      <div className="relative w-full max-w-[300px] aspect-[3/4] bg-black rounded-2xl overflow-hidden shadow-lg">
         {imgSrc ? (
           <img src={imgSrc} alt="Captured" className="w-full h-full object-cover" />
         ) : (
@@ -35,7 +35,12 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
             audio={false}
             ref={webcamRef}
             screenshotFormat="image/webp"
-            videoConstraints={{ facingMode: 'user' }}
+            videoConstraints={{ 
+              facingMode: 'user',
+              width: { ideal: 720 },
+              height: { ideal: 1280 },
+              aspectRatio: 0.75
+            }}
             className="w-full h-full object-cover"
             mirrored={true}
             screenshotQuality={0.6}

@@ -214,6 +214,80 @@ export default function SettingsPanel() {
                 />
               </div>
             </div>
+
+            <div className="col-span-2 mt-4">
+              <h3 className="text-sm font-bold text-slate-800 mb-4 border-b pb-2">Pengaturan Jam Kerja Harian (Opsional)</h3>
+              <p className="text-xs text-slate-500 mb-4">Jika diisi, pengaturan harian ini akan menimpa pengaturan jam kerja umum di atas.</p>
+              
+              <div className="space-y-3">
+                {['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'].map((dayName, dayIdx) => {
+                  const schedule = (editingOffice.schedule || {})[dayIdx] || {
+                    start_in: editingOffice.start_in_time || '07:30',
+                    end_in: editingOffice.end_in_time || '08:30',
+                    start_out: editingOffice.start_out_time || '16:00',
+                    end_out: editingOffice.end_out_time || '17:00',
+                    is_off: false
+                  };
+
+                  const updateDay = (field: string, value: any) => {
+                    const newSchedule = { ...editingOffice.schedule } || {};
+                    newSchedule[dayIdx] = { ...schedule, [field]: value };
+                    setEditingOffice({ ...editingOffice, schedule: newSchedule });
+                  };
+
+                  return (
+                    <div key={dayIdx} className="grid grid-cols-1 lg:grid-cols-6 gap-3 items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="font-bold text-slate-700 text-sm lg:col-span-1">{dayName}</div>
+                      
+                      <div className="flex items-center gap-2 lg:col-span-1">
+                        <input 
+                          type="checkbox" 
+                          id={`off-${dayIdx}`}
+                          checked={schedule.is_off}
+                          onChange={e => updateDay('is_off', e.target.checked)}
+                          className="rounded text-emerald-600 focus:ring-emerald-500"
+                        />
+                        <label htmlFor={`off-${dayIdx}`} className="text-xs text-slate-600">Libur</label>
+                      </div>
+
+                      {!schedule.is_off && (
+                        <>
+                          <div className="lg:col-span-2 grid grid-cols-2 gap-2">
+                            <input 
+                              type="time" 
+                              value={schedule.start_in}
+                              onChange={e => updateDay('start_in', e.target.value)}
+                              className="px-2 py-1 text-xs border border-slate-200 rounded bg-white"
+                            />
+                            <input 
+                              type="time" 
+                              value={schedule.end_in}
+                              onChange={e => updateDay('end_in', e.target.value)}
+                              className="px-2 py-1 text-xs border border-slate-200 rounded bg-white"
+                            />
+                          </div>
+                          <div className="lg:col-span-2 grid grid-cols-2 gap-2">
+                            <input 
+                              type="time" 
+                              value={schedule.start_out}
+                              onChange={e => updateDay('start_out', e.target.value)}
+                              className="px-2 py-1 text-xs border border-slate-200 rounded bg-white"
+                            />
+                            <input 
+                              type="time" 
+                              value={schedule.end_out}
+                              onChange={e => updateDay('end_out', e.target.value)}
+                              className="px-2 py-1 text-xs border border-slate-200 rounded bg-white"
+                            />
+                          </div>
+                        </>
+                      )}
+                      {schedule.is_off && <div className="lg:col-span-4 text-xs text-slate-400 italic">Kantor libur / tidak ada absensi</div>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       </div>

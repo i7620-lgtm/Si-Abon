@@ -2,9 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { User, AttendanceLog } from '../types';
 import { format } from 'date-fns';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
-import { Printer, Download } from 'lucide-react';
+import { Printer } from 'lucide-react';
 
 export default function RecapPanel({ user }: { user: User }) {
   const [logs, setLogs] = useState<AttendanceLog[]>([]);
@@ -31,69 +29,13 @@ export default function RecapPanel({ user }: { user: User }) {
     window.print();
   };
 
-  const handleExportPDF = () => {
-    const input = document.getElementById('recap-table');
-    if (input) {
-      // Temporary fix for html2canvas oklch error by adding standard colors
-      const style = document.createElement('style');
-      style.innerHTML = `
-        #recap-table { background-color: white !important; color: #1e293b !important; }
-        #recap-table .bg-emerald-600 { background-color: #059669 !important; }
-        #recap-table .text-emerald-700 { color: #047857 !important; }
-        #recap-table .text-emerald-600 { color: #059669 !important; }
-        #recap-table .bg-emerald-100 { background-color: #d1fae5 !important; }
-        #recap-table .text-orange-700 { color: #c2410c !important; }
-        #recap-table .text-orange-600 { color: #ea580c !important; }
-        #recap-table .bg-orange-100 { background-color: #ffedd5 !important; }
-        #recap-table .text-blue-700 { color: #1d4ed8 !important; }
-        #recap-table .text-blue-600 { color: #2563eb !important; }
-        #recap-table .bg-blue-100 { background-color: #dbeafe !important; }
-        #recap-table .text-slate-900 { color: #0f172a !important; }
-        #recap-table .text-slate-800 { color: #1e293b !important; }
-        #recap-table .text-slate-700 { color: #334155 !important; }
-        #recap-table .text-slate-600 { color: #475569 !important; }
-        #recap-table .text-slate-500 { color: #64748b !important; }
-        #recap-table .text-slate-400 { color: #94a3b8 !important; }
-        #recap-table .border-slate-200 { border-color: #e2e8f0 !important; }
-        #recap-table .border-slate-100 { border-color: #f1f5f9 !important; }
-        #recap-table .bg-slate-50 { background-color: #f8fafc !important; }
-        #recap-table .bg-slate-100 { background-color: #f1f5f9 !important; }
-        #recap-table .text-white { color: white !important; }
-        #recap-table .font-mono { font-family: monospace !important; }
-      `;
-      document.head.appendChild(style);
-
-      html2canvas(input, {
-        scale: 2,
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      }).then((canvas) => {
-        const imgData = canvas.toDataURL('image/png');
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`recap-absensi-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-        document.head.removeChild(style);
-      }).catch(err => {
-        console.error('PDF Export Error:', err);
-        document.head.removeChild(style);
-        alert('Gagal mengekspor PDF. Silakan gunakan fitur Print dan pilih "Save as PDF".');
-      });
-    }
-  };
-
   return (
     <div className="p-6 h-full overflow-y-auto print:p-0 print:overflow-visible print:bg-white">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 print:hidden">
         <h2 className="text-xl font-bold text-slate-800">Rekap Laporan Absensi</h2>
         <div className="flex items-center gap-2">
-          <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 text-sm font-medium">
-            <Printer size={16} /> Print
-          </button>
-          <button onClick={handleExportPDF} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium">
-            <Download size={16} /> PDF
+          <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm font-medium">
+            <Printer size={16} /> Print Laporan
           </button>
         </div>
       </div>
@@ -137,10 +79,28 @@ export default function RecapPanel({ user }: { user: User }) {
         {/* Professional Header for Print */}
         <div className="hidden print:block p-8 border-b-2 border-slate-900 mb-6">
           <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-3">
-              <div className="w-14 h-14 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-2xl">S</div>
+            <div className="flex items-center gap-4">
+              {selectedUser?.photo_url && (
+                <img 
+                  src={selectedUser.photo_url} 
+                  alt={selectedUser.name} 
+                  className="w-20 h-20 rounded-xl object-cover border-2 border-slate-100"
+                  referrerPolicy="no-referrer"
+                />
+              )}
+              {!selectedUser?.photo_url && user.photo_url && !filterUser && (
+                <img 
+                  src={user.photo_url} 
+                  alt={user.name} 
+                  className="w-20 h-20 rounded-xl object-cover border-2 border-slate-100"
+                  referrerPolicy="no-referrer"
+                />
+              )}
               <div>
-                <h1 className="text-2xl font-bold text-slate-900">Si-Abon</h1>
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="w-10 h-10 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">S</div>
+                  <h1 className="text-2xl font-bold text-slate-900">Si-Abon</h1>
+                </div>
                 <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-semibold">Sistem Absensi Online</p>
               </div>
             </div>

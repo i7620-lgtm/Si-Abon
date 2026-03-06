@@ -459,8 +459,12 @@ export const api = {
             }
             
             const office = { ...rawOffice, schedule };
-            const dateObj = new Date(correction.date);
-            const dayOfWeek = dateObj.getDay();
+            
+            // Parse date string (YYYY-MM-DD) to get day of week safely
+            const [y, m, d] = correction.date.split('-').map(Number);
+            // Use UTC to avoid timezone shifts when determining day of week
+            const dateObj = new Date(Date.UTC(y, m - 1, d));
+            const dayOfWeek = dateObj.getUTCDay();
             
             let startIn = office.start_in_time;
             let startOut = office.start_out_time;
@@ -476,7 +480,12 @@ export const api = {
             time = correction.type === 'IN' ? `${startIn}:00` : `${startOut}:00`;
          }
 
-         const timestamp = `${correction.date}T${time}`;
+         // Construct timestamp in Local Time (assuming Admin is in same timezone as User/Office)
+         // This ensures that when it's saved as UTC and retrieved back, it shows the correct local time.
+         const [year, month, day] = correction.date.split('-').map(Number);
+         const [hour, minute, second] = time.split(':').map(Number);
+         const localDate = new Date(year, month - 1, day, hour, minute, second || 0);
+         const timestamp = localDate.toISOString();
          
          await supabase.from('attendance').insert([{
            user_id: correction.user_id,

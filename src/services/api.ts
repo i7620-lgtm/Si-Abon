@@ -220,7 +220,18 @@ export const api = {
       
     if (userError || !user || !user.offices) throw new Error('User or office not found');
 
-    const office = user.offices;
+    const rawOffice = user.offices;
+    const parts = rawOffice.name.split(':::');
+    const name = parts[0];
+    let schedule = undefined;
+    if (parts[1]) {
+      try {
+        const meta = JSON.parse(parts[1]);
+        schedule = meta.schedule;
+      } catch (e) {}
+    }
+
+    const office = { ...rawOffice, name, schedule };
     const now = new Date();
     const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)
     
@@ -233,10 +244,10 @@ export const api = {
 
     if (office.schedule && office.schedule[dayOfWeek]) {
       const daySchedule = office.schedule[dayOfWeek];
-      startIn = daySchedule.start_in;
-      endIn = daySchedule.end_in;
-      startOut = daySchedule.start_out;
-      endOut = daySchedule.end_out;
+      startIn = daySchedule.start_in || startIn;
+      endIn = daySchedule.end_in || endIn;
+      startOut = daySchedule.start_out || startOut;
+      endOut = daySchedule.end_out || endOut;
       isOff = daySchedule.is_off || false;
     }
 

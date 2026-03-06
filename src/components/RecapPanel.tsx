@@ -34,13 +34,52 @@ export default function RecapPanel({ user }: { user: User }) {
   const handleExportPDF = () => {
     const input = document.getElementById('recap-table');
     if (input) {
-      html2canvas(input).then((canvas) => {
+      // Temporary fix for html2canvas oklch error by adding standard colors
+      const style = document.createElement('style');
+      style.innerHTML = `
+        #recap-table { background-color: white !important; color: #1e293b !important; }
+        #recap-table .bg-emerald-600 { background-color: #059669 !important; }
+        #recap-table .text-emerald-700 { color: #047857 !important; }
+        #recap-table .text-emerald-600 { color: #059669 !important; }
+        #recap-table .bg-emerald-100 { background-color: #d1fae5 !important; }
+        #recap-table .text-orange-700 { color: #c2410c !important; }
+        #recap-table .text-orange-600 { color: #ea580c !important; }
+        #recap-table .bg-orange-100 { background-color: #ffedd5 !important; }
+        #recap-table .text-blue-700 { color: #1d4ed8 !important; }
+        #recap-table .text-blue-600 { color: #2563eb !important; }
+        #recap-table .bg-blue-100 { background-color: #dbeafe !important; }
+        #recap-table .text-slate-900 { color: #0f172a !important; }
+        #recap-table .text-slate-800 { color: #1e293b !important; }
+        #recap-table .text-slate-700 { color: #334155 !important; }
+        #recap-table .text-slate-600 { color: #475569 !important; }
+        #recap-table .text-slate-500 { color: #64748b !important; }
+        #recap-table .text-slate-400 { color: #94a3b8 !important; }
+        #recap-table .border-slate-200 { border-color: #e2e8f0 !important; }
+        #recap-table .border-slate-100 { border-color: #f1f5f9 !important; }
+        #recap-table .bg-slate-50 { background-color: #f8fafc !important; }
+        #recap-table .bg-slate-100 { background-color: #f1f5f9 !important; }
+        #recap-table .text-white { color: white !important; }
+        #recap-table .font-mono { font-family: monospace !important; }
+      `;
+      document.head.appendChild(style);
+
+      html2canvas(input, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        backgroundColor: '#ffffff'
+      }).then((canvas) => {
         const imgData = canvas.toDataURL('image/png');
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-        pdf.save('recap-absensi.pdf');
+        pdf.save(`recap-absensi-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+        document.head.removeChild(style);
+      }).catch(err => {
+        console.error('PDF Export Error:', err);
+        document.head.removeChild(style);
+        alert('Gagal mengekspor PDF. Silakan gunakan fitur Print dan pilih "Save as PDF".');
       });
     }
   };

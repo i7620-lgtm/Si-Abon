@@ -153,15 +153,35 @@ export const api = {
     const now = new Date();
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
-    const currentTime = `${hours}:${minutes}`;
+    const seconds = now.getSeconds().toString().padStart(2, '0');
+    const currentTime = `${hours}:${minutes}:${seconds}`;
+    const currentTimeShort = `${hours}:${minutes}`;
+
+    let is_late = false;
 
     if (data.type === 'IN') {
-       if (currentTime < office.start_in_time || currentTime > office.end_in_time) {
-         throw new Error(`Absen Masuk hanya bisa dilakukan antara ${office.start_in_time} - ${office.end_in_time}`);
+       // Normal: start_in_time to end_in_time
+       // Late: end_in_time to 12:00
+       if (currentTimeShort < office.start_in_time) {
+         throw new Error(`Absen Masuk belum dimulai (Mulai: ${office.start_in_time})`);
+       }
+       if (currentTimeShort > '12:00') {
+         throw new Error(`Batas akhir Absen Masuk adalah pukul 12:00`);
+       }
+       if (currentTimeShort > office.end_in_time) {
+         is_late = true;
        }
     } else if (data.type === 'OUT') {
-       if (currentTime < office.start_out_time || currentTime > office.end_out_time) {
-         throw new Error(`Absen Pulang hanya bisa dilakukan antara ${office.start_out_time} - ${office.end_out_time}`);
+       // Early: 12:01 to start_out_time
+       // Normal: start_out_time to end_out_time
+       if (currentTimeShort <= '12:00') {
+         throw new Error(`Absen Pulang baru bisa dilakukan setelah pukul 12:00`);
+       }
+       if (currentTimeShort > office.end_out_time) {
+         throw new Error(`Batas akhir Absen Pulang adalah pukul ${office.end_out_time}`);
+       }
+       if (currentTimeShort < office.start_out_time) {
+         is_late = true; // Recorded as "Mendahului" in logic, but using is_late flag
        }
     }
 
@@ -171,7 +191,7 @@ export const api = {
       lat: data.lat,
       lng: data.lng,
       photo_url: data.photo_url,
-      is_late: false // Simplified logic
+      is_late: is_late
     }]);
 
     if (error) throw error;

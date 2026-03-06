@@ -39,6 +39,14 @@ export interface AttendanceCorrection {
   created_at: string;
 }
 
+export interface OfficeSchedule {
+  start_in: string;
+  end_in: string;
+  start_out: string;
+  end_out: string;
+  is_off?: boolean;
+}
+
 export interface Office {
   id: number;
   name: string;
@@ -49,6 +57,7 @@ export interface Office {
   end_in_time: string;
   start_out_time: string;
   end_out_time: string;
+  schedule?: Record<number, OfficeSchedule>;
 }
 
 export interface AttendanceLog {

@@ -10,6 +10,7 @@ export interface User {
   leave_quota?: number;
   email?: string;
   supabase_id?: string;
+  assigned_offices?: number[]; // IDs of Tugas Luar offices
 }
 
 export interface LeaveRequest {
@@ -58,6 +59,7 @@ export interface Office {
   start_out_time: string;
   end_out_time: string;
   schedule?: Record<number, OfficeSchedule>;
+  is_tugas_luar?: boolean;
 }
 
 export interface AttendanceLog {

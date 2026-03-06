@@ -361,6 +361,7 @@ export default function App() {
     <div className="flex flex-col md:flex-row h-screen w-screen bg-slate-50 overflow-hidden font-sans">
       <Sidebar 
         user={user} 
+        offices={offices}
         onLogout={async () => {
           await supabase.auth.signOut();
           setUser(null);

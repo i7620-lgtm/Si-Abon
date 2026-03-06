@@ -11,41 +11,48 @@ export default function AttendancePanel({ user }: { user: User }) {
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [office, setOffice] = useState<Office | null>(null);
+  const [offices, setOffices] = useState<Office[]>([]);
+  const [selectedOffice, setSelectedOffice] = useState<Office | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [todayLogs, setTodayLogs] = useState<AttendanceLog[]>([]);
-  const [isTugasLuar, setIsTugasLuar] = useState(false);
   const [tugasNotes, setTugasNotes] = useState('');
 
   useEffect(() => {
-    // Fetch user's office details
-    api.getOffices().then(offices => {
-      const userOffice = offices.find(o => o.id === user.office_id);
-      if (userOffice) setOffice(userOffice);
+    // Fetch all offices and filter for user
+    api.getOffices().then(allOffices => {
+      const mainOffice = allOffices.find(o => o.id === user.office_id);
+      const assignedTugas = allOffices.filter(o => user.assigned_offices?.includes(o.id));
+      
+      const userOffices = [];
+      if (mainOffice) userOffices.push(mainOffice);
+      userOffices.push(...assignedTugas);
+      
+      setOffices(userOffices);
+      if (userOffices.length > 0) setSelectedOffice(userOffices[0]);
     });
 
     // Fetch today's logs to prevent duplicates
     const today = new Date().toISOString().split('T')[0];
     api.getAttendance({ user_id: user.id, start_date: today, end_date: today }).then(setTodayLogs);
-  }, [user.id, user.office_id]);
+  }, [user.id, user.office_id, user.assigned_offices]);
 
   useEffect(() => {
-    if (navigator.geolocation && office) {
+    if (navigator.geolocation && selectedOffice) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
           setLocation({ lat, lng });
           
-          // Calculate distance
-          const dist = calculateDistance(lat, lng, office.lat, office.lng);
+          // Calculate distance to selected office
+          const dist = calculateDistance(lat, lng, selectedOffice.lat, selectedOffice.lng);
           setDistance(Math.round(dist));
         },
         (error) => console.error(error),
         { enableHighAccuracy: true }
       );
     }
-  }, [office]);
+  }, [selectedOffice]);
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371e3; // metres
@@ -73,7 +80,7 @@ export default function AttendancePanel({ user }: { user: User }) {
         lat: location.lat,
         lng: location.lng,
         photo_url: imageSrc,
-        notes: isTugasLuar ? `TUGAS LUAR: ${tugasNotes}` : undefined
+        notes: selectedOffice?.is_tugas_luar ? `TUGAS LUAR: ${selectedOffice.name}${tugasNotes ? ` - ${tugasNotes}` : ''}` : undefined
       });
       setStep('success');
       // Refresh logs
@@ -87,13 +94,13 @@ export default function AttendancePanel({ user }: { user: User }) {
     }
   };
 
-  const isWithinRange = distance !== null && office && distance <= office.radius_meters;
-  const canAbsen = isWithinRange || isTugasLuar;
+  const isWithinRange = distance !== null && selectedOffice && distance <= selectedOffice.radius_meters;
+  const canAbsen = isWithinRange;
 
-  if (!office) {
+  if (offices.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8 text-center">
-        <p className="text-slate-500">Anda belum ditempatkan di kantor manapun. Hubungi admin.</p>
+        <p className="text-slate-500">Anda belum ditempatkan di lokasi manapun. Hubungi admin.</p>
       </div>
     );
   }
@@ -123,12 +130,12 @@ export default function AttendancePanel({ user }: { user: User }) {
           &larr; Kembali
         </button>
         <h2 className="text-xl font-bold text-slate-800 mb-6 text-center">
-          Ambil Foto Selfie {isTugasLuar && <span className="text-blue-600">(Tugas Luar)</span>}
+          Ambil Foto Selfie {selectedOffice?.is_tugas_luar && <span className="text-blue-600">(Tugas Luar)</span>}
         </h2>
         
-        {isTugasLuar && (
+        {selectedOffice?.is_tugas_luar && (
           <div className="mb-6 bg-blue-50 p-4 rounded-xl border border-blue-100">
-            <label className="block text-xs font-bold text-blue-600 uppercase mb-2">Keterangan Tugas Luar</label>
+            <label className="block text-xs font-bold text-blue-600 uppercase mb-2">Keterangan Tugas Luar ({selectedOffice.name})</label>
             <textarea 
               className="w-full p-3 text-sm border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
               placeholder="Contoh: Rapat Koordinasi di Dinas Pendidikan..."
@@ -156,36 +163,38 @@ export default function AttendancePanel({ user }: { user: User }) {
       )}
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-800 mb-1">Lokasi Anda</h2>
-            <p className="text-sm text-slate-500">
-              Kantor: <span className="font-medium text-slate-700">{office.name}</span>
-            </p>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-slate-800 mb-1">Lokasi Absensi</h2>
+          <div className="flex flex-wrap gap-2 mt-3">
+            {offices.map(o => (
+              <button
+                key={o.id}
+                onClick={() => setSelectedOffice(o)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                  selectedOffice?.id === o.id 
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-600/20' 
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                {o.is_tugas_luar ? '📍 ' : '🏢 '}
+                {o.name}
+                {o.is_tugas_luar && <span className="ml-1 opacity-70">(Tugas Luar)</span>}
+              </button>
+            ))}
           </div>
-          <button 
-            onClick={() => setIsTugasLuar(!isTugasLuar)}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              isTugasLuar 
-                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            {isTugasLuar ? '✓ Mode Tugas Luar' : '+ Lokasi Tugas Luar'}
-          </button>
         </div>
 
         <p className="text-sm text-slate-500 mb-4">
-          {distance !== null 
-            ? `Jarak ke kantor: ${distance} meter` 
+          {distance !== null && selectedOffice
+            ? `Jarak ke ${selectedOffice.name}: ${distance} meter` 
             : 'Mencari lokasi...'}
         </p>
         
         <div className="h-64 w-full rounded-xl overflow-hidden relative">
-          {location ? (
+          {location && selectedOffice ? (
             <LeafletMap 
               center={[location.lat, location.lng]} 
-              radius={office.radius_meters}
+              radius={selectedOffice.radius_meters}
               markers={[{ lat: location.lat, lng: location.lng }]}
               interactive={false}
             />
@@ -197,9 +206,9 @@ export default function AttendancePanel({ user }: { user: User }) {
           
           {/* Status Badge */}
           <div className={`absolute top-4 right-4 px-3 py-1 rounded-full text-xs font-medium shadow-sm z-[400] ${
-            isWithinRange ? 'bg-emerald-100 text-emerald-700' : isTugasLuar ? 'bg-blue-100 text-blue-700' : 'bg-red-100 text-red-700'
+            isWithinRange ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
           }`}>
-            {isWithinRange ? 'Di dalam Area' : isTugasLuar ? 'Mode Tugas Luar' : 'Di luar Area'}
+            {isWithinRange ? 'Di dalam Area' : 'Di luar Area'}
           </div>
         </div>
       </div>
@@ -224,13 +233,13 @@ export default function AttendancePanel({ user }: { user: User }) {
           if (alreadyDone) {
             statusMessage = `Anda sudah melakukan Absen ${currentType === 'IN' ? 'Masuk' : 'Pulang'} hari ini.`;
             statusColor = "text-emerald-600 bg-emerald-50 border-emerald-100";
-          } else if (currentType === 'IN') {
-            if (currentTime > office.end_in_time) {
+          } else if (currentType === 'IN' && selectedOffice) {
+            if (currentTime > selectedOffice.end_in_time) {
               statusMessage = "Anda terlambat! Absensi akan tetap dicatat dengan status TERLAMBAT.";
               statusColor = "text-red-600 bg-red-50 border-red-100";
             }
-          } else {
-            if (currentTime < office.start_out_time) {
+          } else if (selectedOffice) {
+            if (currentTime < selectedOffice.start_out_time) {
               statusMessage = "Anda absen mendahului waktu! Absensi akan tetap dicatat dengan status MENDAHULUI.";
               statusColor = "text-orange-600 bg-orange-50 border-orange-100";
             }
@@ -254,7 +263,7 @@ export default function AttendancePanel({ user }: { user: User }) {
                 </div>
               ) : (
                 <button
-                  disabled={!canAbsen}
+                  disabled={!canAbsen || !selectedOffice}
                   onClick={() => { setType(currentType); setStep('photo'); }}
                   className={`w-full flex flex-col items-center justify-center p-8 text-white rounded-3xl shadow-xl transition-all ${
                     isOutTime 
@@ -266,9 +275,11 @@ export default function AttendancePanel({ user }: { user: User }) {
                     {isOutTime ? <LogOut size={40} /> : <Clock size={40} />}
                   </div>
                   <span className="text-2xl font-bold">{isOutTime ? 'Absen Pulang' : 'Absen Masuk'}</span>
-                  <span className="text-sm opacity-90 mt-2 font-medium bg-black/10 px-3 py-1 rounded-full">
-                    {isOutTime ? `${office.start_out_time} - ${office.end_out_time}` : `${office.start_in_time} - ${office.end_in_time}`}
-                  </span>
+                  {selectedOffice && (
+                    <span className="text-sm opacity-90 mt-2 font-medium bg-black/10 px-3 py-1 rounded-full">
+                      {isOutTime ? `${selectedOffice.start_out_time} - ${selectedOffice.end_out_time}` : `${selectedOffice.start_in_time} - ${selectedOffice.end_in_time}`}
+                    </span>
+                  )}
                 </button>
               )}
             </div>
@@ -278,7 +289,7 @@ export default function AttendancePanel({ user }: { user: User }) {
       
       {!canAbsen && location && (
         <p className="text-center text-xs text-red-500 bg-red-50 p-3 rounded-lg">
-          Anda berada di luar jangkauan kantor. Silakan mendekat ke lokasi kantor atau gunakan mode <b>Tugas Luar</b> jika sedang bertugas di lapangan.
+          Anda berada di luar jangkauan {selectedOffice?.name || 'kantor'}. Silakan mendekat ke lokasi yang dipilih atau hubungi admin jika Anda sedang bertugas di lokasi lain.
         </p>
       )}
     </div>

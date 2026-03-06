@@ -221,8 +221,21 @@ export default function AttendancePanel({ user }: { user: User }) {
           const currentTime = `${hours}:${minutes}`;
           
           const isOutTime = currentTime > '12:00';
-          const currentType = isOutTime ? 'OUT' : 'IN';
+          let currentType: 'IN' | 'OUT' = isOutTime ? 'OUT' : 'IN';
           
+          // Check if we are in the "early departure" window (between start_out_time and end_out_time)
+          // If so, force the button to be OUT type
+          if (selectedOffice) {
+             if (currentTime >= selectedOffice.start_out_time && currentTime <= selectedOffice.end_out_time) {
+               currentType = 'OUT';
+             }
+             // Also switch to OUT if we are past the start_out_time even if it's before 12:00 (unlikely but possible with custom schedules)
+             // or if the user has already clocked IN and it is now past the start_out_time
+             else if (currentTime >= selectedOffice.start_out_time) {
+                currentType = 'OUT';
+             }
+          }
+
           const hasDoneIn = todayLogs.some(l => l.type === 'IN');
           const hasDoneOut = todayLogs.some(l => l.type === 'OUT');
           const alreadyDone = (currentType === 'IN' && hasDoneIn) || (currentType === 'OUT' && hasDoneOut);
@@ -238,11 +251,12 @@ export default function AttendancePanel({ user }: { user: User }) {
               statusMessage = "Anda terlambat! Absensi akan tetap dicatat dengan status TERLAMBAT.";
               statusColor = "text-red-600 bg-red-50 border-red-100";
             }
-          } else if (selectedOffice) {
-            if (currentTime < selectedOffice.start_out_time) {
-              statusMessage = "Anda absen mendahului waktu! Absensi akan tetap dicatat dengan status MENDAHULUI.";
-              statusColor = "text-orange-600 bg-orange-50 border-orange-100";
-            }
+          } else if (currentType === 'OUT' && selectedOffice) {
+             // Logic for early departure warning if needed, though user asked to switch button
+             if (currentTime < selectedOffice.start_out_time) {
+               statusMessage = "Anda absen mendahului waktu! Absensi akan tetap dicatat dengan status MENDAHULUI.";
+               statusColor = "text-orange-600 bg-orange-50 border-orange-100";
+             }
           }
           
           return (
@@ -266,18 +280,18 @@ export default function AttendancePanel({ user }: { user: User }) {
                   disabled={!canAbsen || !selectedOffice}
                   onClick={() => { setType(currentType); setStep('photo'); }}
                   className={`w-full flex flex-col items-center justify-center p-8 text-white rounded-3xl shadow-xl transition-all ${
-                    isOutTime 
+                    currentType === 'OUT' 
                       ? 'bg-orange-500 shadow-orange-500/30 hover:bg-orange-600' 
                       : 'bg-emerald-600 shadow-emerald-600/30 hover:bg-emerald-700'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                 >
                   <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm">
-                    {isOutTime ? <LogOut size={40} /> : <Clock size={40} />}
+                    {currentType === 'OUT' ? <LogOut size={40} /> : <Clock size={40} />}
                   </div>
-                  <span className="text-2xl font-bold">{isOutTime ? 'Absen Pulang' : 'Absen Masuk'}</span>
+                  <span className="text-2xl font-bold">{currentType === 'OUT' ? 'Absen Pulang' : 'Absen Masuk'}</span>
                   {selectedOffice && (
                     <span className="text-sm opacity-90 mt-2 font-medium bg-black/10 px-3 py-1 rounded-full">
-                      {isOutTime ? `${selectedOffice.start_out_time} - ${selectedOffice.end_out_time}` : `${selectedOffice.start_in_time} - ${selectedOffice.end_in_time}`}
+                      {currentType === 'OUT' ? `${selectedOffice.start_out_time} - ${selectedOffice.end_out_time}` : `${selectedOffice.start_in_time} - ${selectedOffice.end_in_time}`}
                     </span>
                   )}
                 </button>

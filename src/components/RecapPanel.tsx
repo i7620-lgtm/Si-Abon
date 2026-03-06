@@ -8,15 +8,24 @@ import { Printer, Download } from 'lucide-react';
 
 export default function RecapPanel({ user }: { user: User }) {
   const [logs, setLogs] = useState<AttendanceLog[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [filterRole, setFilterRole] = useState('');
+  const [filterUser, setFilterUser] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
     api.getAttendance({ start_date: startDate, end_date: endDate }).then(setLogs);
+    api.getUsers().then(setUsers);
   }, [startDate, endDate]);
 
-  const filteredLogs = logs.filter(log => filterRole ? log.role === filterRole : true);
+  const filteredLogs = logs.filter(log => {
+    const roleMatch = filterRole ? log.role === filterRole : true;
+    const userMatch = filterUser ? log.user_id === parseInt(filterUser) : true;
+    return roleMatch && userMatch;
+  });
+
+  const selectedUser = users.find(u => u.id === parseInt(filterUser));
 
   const handlePrint = () => {
     window.print();
@@ -50,7 +59,7 @@ export default function RecapPanel({ user }: { user: User }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 print:hidden">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6 print:hidden">
         <select 
           className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm"
           value={filterRole}
@@ -59,6 +68,17 @@ export default function RecapPanel({ user }: { user: User }) {
           <option value="">Semua Role</option>
           <option value="employee">Pegawai</option>
           <option value="admin">Admin</option>
+          <option value="headmaster">Kepala Sekolah</option>
+        </select>
+        <select 
+          className="px-4 py-2 bg-white border border-slate-200 rounded-lg text-sm"
+          value={filterUser}
+          onChange={e => setFilterUser(e.target.value)}
+        >
+          <option value="">Semua Pegawai</option>
+          {users.map(u => (
+            <option key={u.id} value={u.id}>{u.name}</option>
+          ))}
         </select>
         <input 
           type="date" 
@@ -77,50 +97,65 @@ export default function RecapPanel({ user }: { user: User }) {
       <div id="recap-table" className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm print:border-none print:shadow-none print:rounded-none">
         {/* Professional Header for Print */}
         <div className="hidden print:block p-8 border-b-2 border-slate-900 mb-6">
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">S</div>
+              <div className="w-14 h-14 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-2xl">S</div>
               <div>
                 <h1 className="text-2xl font-bold text-slate-900">Si-Abon</h1>
-                <p className="text-xs text-slate-500 uppercase tracking-widest">Sistem Absensi Online</p>
+                <p className="text-[10px] text-slate-500 uppercase tracking-[0.2em] font-semibold">Sistem Absensi Online</p>
               </div>
             </div>
             <div className="text-right">
-              <h2 className="text-lg font-bold text-slate-800">LAPORAN ABSENSI PEGAWAI</h2>
-              <p className="text-xs text-slate-500">Periode: {startDate || '-'} s/d {endDate || '-'}</p>
+              <h2 className="text-xl font-black text-slate-900 tracking-tight">REKAPITULASI ABSENSI</h2>
+              <p className="text-xs text-slate-500 font-medium">Dokumen Resmi Sistem Si-Abon</p>
             </div>
           </div>
-          <div className="flex justify-between text-[10px] text-slate-400 border-t border-slate-100 pt-2">
-            <p>Dicetak oleh: {user.name} ({user.role})</p>
-            <p>Waktu Cetak: {new Date().toLocaleString('id-ID')}</p>
+          
+          <div className="grid grid-cols-2 gap-x-12 gap-y-3 text-xs border-t border-slate-100 pt-6">
+            <div className="space-y-2">
+              <div className="flex justify-between border-b border-slate-50 pb-1">
+                <span className="text-slate-400 font-medium">Nama Pegawai</span>
+                <span className="font-bold text-slate-900">{selectedUser ? selectedUser.name : 'Semua Pegawai'}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-50 pb-1">
+                <span className="text-slate-400 font-medium">Nama Kantor</span>
+                <span className="font-bold text-slate-900">{selectedUser?.office_name || user.office_name || '-'}</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between border-b border-slate-50 pb-1">
+                <span className="text-slate-400 font-medium">Rentang Tanggal</span>
+                <span className="font-bold text-slate-900">{startDate || 'Awal'} s/d {endDate || 'Akhir'}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-50 pb-1">
+                <span className="text-slate-400 font-medium">Tanggal Cetak</span>
+                <span className="font-bold text-slate-900">{new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+              </div>
+            </div>
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left print:text-[10pt]">
+          <table className="w-full text-sm text-left print:text-[9pt]">
             <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200 print:bg-slate-100 print:text-slate-900">
               <tr>
-                <th className="px-6 py-4 print:px-2 print:py-2">Pegawai</th>
-                <th className="px-6 py-4 print:px-2 print:py-2">Role</th>
-                <th className="px-6 py-4 print:px-2 print:py-2">Tanggal</th>
-                <th className="px-6 py-4 print:px-2 print:py-2">Jam</th>
-                <th className="px-6 py-4 print:px-2 print:py-2">Tipe</th>
-                <th className="px-6 py-4 print:px-2 print:py-2">Lokasi / Kantor</th>
-                <th className="px-6 py-4 print:px-2 print:py-2">Status</th>
+                <th className="px-6 py-4 print:px-3 print:py-3">Tanggal</th>
+                <th className="px-6 py-4 print:px-3 print:py-3">Jam</th>
+                <th className="px-6 py-4 print:px-3 print:py-3">Tipe</th>
+                <th className="px-6 py-4 print:px-3 print:py-3">Lokasi / Kantor</th>
+                <th className="px-6 py-4 print:px-3 print:py-3">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 print:divide-slate-200">
               {filteredLogs.map(log => (
                 <tr key={log.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">
-                  <td className="px-6 py-4 font-medium text-slate-900 print:px-2 print:py-2">{log.name}</td>
-                  <td className="px-6 py-4 capitalize text-slate-500 print:px-2 print:py-2 print:text-slate-900">{log.role}</td>
-                  <td className="px-6 py-4 font-mono text-slate-600 print:px-2 print:py-2 print:text-slate-900">
+                  <td className="px-6 py-4 font-mono text-slate-600 print:px-3 print:py-3 print:text-slate-900">
                     {format(new Date(log.timestamp), 'dd/MM/yyyy')}
                   </td>
-                  <td className="px-6 py-4 font-mono text-slate-600 print:px-2 print:py-2 print:text-slate-900">
+                  <td className="px-6 py-4 font-mono text-slate-600 print:px-3 print:py-3 print:text-slate-900">
                     {format(new Date(log.timestamp), 'HH:mm:ss')}
                   </td>
-                  <td className="px-6 py-4 print:px-2 print:py-2">
+                  <td className="px-6 py-4 print:px-3 print:py-3">
                     <span className={`px-2 py-1 rounded text-xs font-bold print:border print:bg-transparent ${
                       log.type === 'IN' ? 'bg-emerald-100 text-emerald-700 print:border-emerald-200 print:text-emerald-700' : 
                       log.type === 'OUT' ? 'bg-orange-100 text-orange-700 print:border-orange-200 print:text-orange-700' :
@@ -129,7 +164,7 @@ export default function RecapPanel({ user }: { user: User }) {
                       {log.type}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-slate-500 text-xs print:px-2 print:py-2">
+                  <td className="px-6 py-4 text-slate-500 text-xs print:px-3 print:py-3">
                     <div className="font-medium text-slate-700">{log.office_name || '-'}</div>
                     <div className="text-[10px] opacity-60 print:hidden">
                       {log.notes ? (
@@ -139,7 +174,7 @@ export default function RecapPanel({ user }: { user: User }) {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4 print:px-2 print:py-2">
+                  <td className="px-6 py-4 print:px-3 print:py-3">
                     {log.type === 'IN' ? (
                       log.is_late ? (
                         <span className="text-red-600 font-medium text-xs">Terlambat</span>
@@ -147,7 +182,11 @@ export default function RecapPanel({ user }: { user: User }) {
                         <span className="text-emerald-600 font-medium text-xs">Tepat Waktu</span>
                       )
                     ) : (
-                      <span className="text-slate-400 text-xs">-</span>
+                      log.is_late ? (
+                        <span className="text-orange-600 font-medium text-xs">Mendahului</span>
+                      ) : (
+                        <span className="text-emerald-600 font-medium text-xs">Tepat Waktu</span>
+                      )
                     )}
                   </td>
                 </tr>

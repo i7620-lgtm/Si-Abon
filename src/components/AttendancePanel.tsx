@@ -163,27 +163,53 @@ export default function AttendancePanel({ user }: { user: User }) {
       <div className="grid grid-cols-1 gap-4">
         {(() => {
           const now = new Date();
-          const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
-          const isOutTime = currentTime >= office.start_out_time;
+          const hours = now.getHours().toString().padStart(2, '0');
+          const minutes = now.getMinutes().toString().padStart(2, '0');
+          const currentTime = `${hours}:${minutes}`;
+          
+          const isOutTime = currentTime > '12:00';
+          const currentType = isOutTime ? 'OUT' : 'IN';
+          
+          let statusMessage = null;
+          let statusColor = '';
+
+          if (currentType === 'IN') {
+            if (currentTime > office.end_in_time) {
+              statusMessage = "Anda terlambat! Absensi akan tetap dicatat dengan status TERLAMBAT.";
+              statusColor = "text-red-600 bg-red-50 border-red-100";
+            }
+          } else {
+            if (currentTime < office.start_out_time) {
+              statusMessage = "Anda absen mendahului waktu! Absensi akan tetap dicatat dengan status MENDAHULUI.";
+              statusColor = "text-orange-600 bg-orange-50 border-orange-100";
+            }
+          }
           
           return (
-            <button
-              disabled={!isWithinRange}
-              onClick={() => { setType(isOutTime ? 'OUT' : 'IN'); setStep('photo'); }}
-              className={`flex flex-col items-center justify-center p-8 text-white rounded-3xl shadow-xl transition-all ${
-                isOutTime 
-                  ? 'bg-orange-500 shadow-orange-500/30 hover:bg-orange-600' 
-                  : 'bg-emerald-600 shadow-emerald-600/30 hover:bg-emerald-700'
-              } disabled:opacity-50 disabled:cursor-not-allowed`}
-            >
-              <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm">
-                {isOutTime ? <LogOut size={40} /> : <Clock size={40} />}
-              </div>
-              <span className="text-2xl font-bold">{isOutTime ? 'Absen Pulang' : 'Absen Masuk'}</span>
-              <span className="text-sm opacity-90 mt-2 font-medium bg-black/10 px-3 py-1 rounded-full">
-                {isOutTime ? `${office.start_out_time} - ${office.end_out_time}` : `${office.start_in_time} - ${office.end_in_time}`}
-              </span>
-            </button>
+            <div className="space-y-4">
+              {statusMessage && (
+                <div className={`p-4 rounded-xl border text-sm font-medium animate-pulse ${statusColor}`}>
+                  ⚠️ {statusMessage}
+                </div>
+              )}
+              <button
+                disabled={!isWithinRange}
+                onClick={() => { setType(currentType); setStep('photo'); }}
+                className={`w-full flex flex-col items-center justify-center p-8 text-white rounded-3xl shadow-xl transition-all ${
+                  isOutTime 
+                    ? 'bg-orange-500 shadow-orange-500/30 hover:bg-orange-600' 
+                    : 'bg-emerald-600 shadow-emerald-600/30 hover:bg-emerald-700'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mb-4 backdrop-blur-sm">
+                  {isOutTime ? <LogOut size={40} /> : <Clock size={40} />}
+                </div>
+                <span className="text-2xl font-bold">{isOutTime ? 'Absen Pulang' : 'Absen Masuk'}</span>
+                <span className="text-sm opacity-90 mt-2 font-medium bg-black/10 px-3 py-1 rounded-full">
+                  {isOutTime ? `${office.start_out_time} - ${office.end_out_time}` : `${office.start_in_time} - ${office.end_in_time}`}
+                </span>
+              </button>
+            </div>
           );
         })()}
       </div>

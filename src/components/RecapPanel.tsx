@@ -85,9 +85,10 @@ export default function RecapPanel({ user }: { user: User }) {
               <tr>
                 <th className="px-6 py-4">Pegawai</th>
                 <th className="px-6 py-4">Role</th>
-                <th className="px-6 py-4">Waktu</th>
+                <th className="px-6 py-4">Tanggal</th>
+                <th className="px-6 py-4">Jam</th>
                 <th className="px-6 py-4">Tipe</th>
-                <th className="px-6 py-4">Lokasi</th>
+                <th className="px-6 py-4">Lokasi / Kantor</th>
                 <th className="px-6 py-4">Status</th>
               </tr>
             </thead>
@@ -97,7 +98,10 @@ export default function RecapPanel({ user }: { user: User }) {
                   <td className="px-6 py-4 font-medium text-slate-900">{log.name}</td>
                   <td className="px-6 py-4 capitalize text-slate-500">{log.role}</td>
                   <td className="px-6 py-4 font-mono text-slate-600">
-                    {format(new Date(log.timestamp), 'dd/MM/yyyy HH:mm')}
+                    {format(new Date(log.timestamp), 'dd/MM/yyyy')}
+                  </td>
+                  <td className="px-6 py-4 font-mono text-slate-600">
+                    {format(new Date(log.timestamp), 'HH:mm:ss')}
                   </td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded text-xs font-bold ${
@@ -109,11 +113,14 @@ export default function RecapPanel({ user }: { user: User }) {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-slate-500 text-xs">
-                    {log.notes ? (
-                      <span className="italic">"{log.notes}"</span>
-                    ) : (
-                      `${log.lat.toFixed(5)}, ${log.lng.toFixed(5)}`
-                    )}
+                    <div className="font-medium text-slate-700">{log.office_name || '-'}</div>
+                    <div className="text-[10px] opacity-60">
+                      {log.notes ? (
+                        <span className="italic">"{log.notes}"</span>
+                      ) : (
+                        `${log.lat.toFixed(5)}, ${log.lng.toFixed(5)}`
+                      )}
+                    </div>
                   </td>
                   <td className="px-6 py-4">
                     {log.type === 'IN' ? (

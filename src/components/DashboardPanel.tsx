@@ -69,12 +69,15 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {/* Card 1: Jam Masuk */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-32">
+        <div 
+          onClick={() => setActiveTab('attendance')}
+          className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-32 cursor-pointer hover:shadow-md transition-shadow"
+        >
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Jam Masuk</p>
               <p className="text-2xl font-bold text-slate-800 mt-1">
-                {inTime ? new Date(inTime.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
+                {inTime ? new Date(inTime.timestamp).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit', hour12: false}) : '--:--'}
               </p>
             </div>
             <div className={`p-2 rounded-lg ${inTime ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
@@ -87,12 +90,15 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
         </div>
 
         {/* Card 2: Jam Keluar */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-32">
+        <div 
+          onClick={() => setActiveTab('attendance')}
+          className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-32 cursor-pointer hover:shadow-md transition-shadow"
+        >
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Jam Keluar</p>
               <p className="text-2xl font-bold text-slate-800 mt-1">
-                {outTime ? new Date(outTime.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : '--:--'}
+                {outTime ? new Date(outTime.timestamp).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit', hour12: false}) : '--:--'}
               </p>
             </div>
             <div className={`p-2 rounded-lg ${outTime ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-400'}`}>
@@ -105,7 +111,10 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
         </div>
 
         {/* Card 3: Sisa Cuti */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-32">
+        <div 
+          onClick={() => setActiveTab('leave')}
+          className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between h-32 cursor-pointer hover:shadow-md transition-shadow"
+        >
           <div className="flex justify-between items-start">
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sisa Cuti</p>
@@ -119,7 +128,10 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
         </div>
 
         {/* Card 4: Kepatuhan */}
-        <div className={`p-5 rounded-2xl border shadow-sm flex flex-col justify-between h-32 ${lateCount === 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}>
+        <div 
+          onClick={() => setActiveTab('history')}
+          className={`p-5 rounded-2xl border shadow-sm flex flex-col justify-between h-32 cursor-pointer hover:shadow-md transition-shadow ${lateCount === 0 ? 'bg-emerald-50 border-emerald-100' : 'bg-red-50 border-red-100'}`}
+        >
           <div className="flex justify-between items-start">
             <div>
               <p className={`text-xs font-bold uppercase tracking-wider ${lateCount === 0 ? 'text-emerald-600' : 'text-red-600'}`}>

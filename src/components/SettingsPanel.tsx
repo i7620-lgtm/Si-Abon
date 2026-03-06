@@ -201,48 +201,6 @@ export default function SettingsPanel({ onUserUpdate }: { onUserUpdate?: () => v
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Jam Masuk (Mulai)</label>
-                <input 
-                  type="time" 
-                  value={editingOffice.start_in_time}
-                  onChange={e => setEditingOffice({...editingOffice, start_in_time: e.target.value})}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Jam Masuk (Akhir)</label>
-                <input 
-                  type="time" 
-                  value={editingOffice.end_in_time}
-                  onChange={e => setEditingOffice({...editingOffice, end_in_time: e.target.value})}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Jam Pulang (Mulai)</label>
-                <input 
-                  type="time" 
-                  value={editingOffice.start_out_time}
-                  onChange={e => setEditingOffice({...editingOffice, start_out_time: e.target.value})}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">Jam Pulang (Akhir)</label>
-                <input 
-                  type="time" 
-                  value={editingOffice.end_out_time}
-                  onChange={e => setEditingOffice({...editingOffice, end_out_time: e.target.value})}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
-            </div>
-
             <div className="col-span-2 mt-4">
               <h3 className="text-sm font-bold text-slate-800 mb-4 border-b pb-2">Pengaturan Jam Kerja Harian (Opsional)</h3>
               <p className="text-xs text-slate-500 mb-4">Jika diisi, pengaturan harian ini akan menimpa pengaturan jam kerja umum di atas.</p>

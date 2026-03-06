@@ -5,6 +5,41 @@
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
+@media print {
+  @page {
+    margin: 1cm;
+    size: A4;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .print-hidden {
+    display: none !important;
+  }
+
+  .print-visible {
+    display: block !important;
+  }
+
+  .print-no-shadow {
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .print-table {
+    width: 100% !important;
+    font-size: 10pt !important;
+  }
+
+  .print-table th, .print-table td {
+    padding: 6px 8px !important;
+    border-bottom: 1px solid #eee !important;
+  }
+}
+
 /* Leaflet CSS fix */
 .leaflet-container {
   width: 100%;

@@ -262,25 +262,38 @@ export const api = {
 
     let is_late = false;
 
+    // Calculate dynamic cutoff (midpoint) between IN and OUT windows
+    const endInParts = endIn.split(':').map(Number);
+    const startOutParts = startOut.split(':').map(Number);
+    const endInMinutes = endInParts[0] * 60 + endInParts[1];
+    const startOutMinutes = startOutParts[0] * 60 + startOutParts[1];
+    const midPointMinutes = endInMinutes + ((startOutMinutes - endInMinutes) / 2);
+    
+    const midPointHours = Math.floor(midPointMinutes / 60).toString().padStart(2, '0');
+    const midPointMins = Math.floor(midPointMinutes % 60).toString().padStart(2, '0');
+    const cutoffTime = `${midPointHours}:${midPointMins}`;
+
     if (data.type === 'IN') {
        if (currentTimeShort < startIn) {
          throw new Error(`Absen Masuk belum dimulai (Mulai: ${startIn})`);
        }
-       if (currentTimeShort > '12:00') {
-         throw new Error(`Batas akhir Absen Masuk adalah pukul 12:00`);
+       // Allow IN until the cutoff time
+       if (currentTimeShort > cutoffTime) {
+         throw new Error(`Batas akhir Absen Masuk adalah pukul ${cutoffTime}`);
        }
        if (currentTimeShort > endIn) {
          is_late = true;
        }
     } else if (data.type === 'OUT') {
-       if (currentTimeShort <= '12:00') {
-         throw new Error(`Absen Pulang baru bisa dilakukan setelah pukul 12:00`);
+       // Allow OUT starting from the cutoff time
+       if (currentTimeShort <= cutoffTime) {
+         throw new Error(`Absen Pulang baru bisa dilakukan setelah pukul ${cutoffTime}`);
        }
        if (currentTimeShort > endOut) {
          throw new Error(`Batas akhir Absen Pulang adalah pukul ${endOut}`);
        }
        if (currentTimeShort < startOut) {
-         is_late = true;
+         is_late = true; // Early departure
        }
     }
 
@@ -429,7 +442,40 @@ export const api = {
     if (status === 'verified') {
        const { data: correction } = await supabase.from('attendance_corrections').select('*').eq('id', id).single();
        if (correction) {
-         const time = correction.type === 'IN' ? '08:00:00' : '17:00:00';
+         // Fetch user office to get the correct schedule
+         const { data: user } = await supabase.from('users').select('*, offices(*)').eq('id', correction.user_id).single();
+         
+         let time = correction.type === 'IN' ? '08:00:00' : '17:00:00'; // Default fallback
+         
+         if (user && user.offices) {
+            const rawOffice = user.offices;
+            const parts = rawOffice.name.split(':::');
+            let schedule = undefined;
+            if (parts[1]) {
+              try {
+                const meta = JSON.parse(parts[1]);
+                schedule = meta.schedule;
+              } catch (e) {}
+            }
+            
+            const office = { ...rawOffice, schedule };
+            const dateObj = new Date(correction.date);
+            const dayOfWeek = dateObj.getDay();
+            
+            let startIn = office.start_in_time;
+            let startOut = office.start_out_time;
+            
+            if (office.schedule && office.schedule[dayOfWeek]) {
+               const daySchedule = office.schedule[dayOfWeek];
+               if (!daySchedule.is_off) {
+                 startIn = daySchedule.start_in || startIn;
+                 startOut = daySchedule.start_out || startOut;
+               }
+            }
+            
+            time = correction.type === 'IN' ? `${startIn}:00` : `${startOut}:00`;
+         }
+
          const timestamp = `${correction.date}T${time}`;
          
          await supabase.from('attendance').insert([{
@@ -439,7 +485,8 @@ export const api = {
            lat: 0,
            lng: 0,
            photo_url: '',
-           is_late: false
+           is_late: false,
+           notes: 'Koreksi Absensi (Lupa Absen)'
          }]);
        }
     }

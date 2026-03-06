@@ -37,7 +37,7 @@ export default function RecapPanel({ user }: { user: User }) {
   };
 
   return (
-    <div className="p-6 h-full overflow-y-auto print:p-0 print:overflow-visible">
+    <div className="p-6 h-full overflow-y-auto print:p-0 print:overflow-visible print:bg-white">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 print:hidden">
         <h2 className="text-xl font-bold text-slate-800">Rekap Laporan Absensi</h2>
         <div className="flex items-center gap-2">
@@ -74,47 +74,64 @@ export default function RecapPanel({ user }: { user: User }) {
         />
       </div>
 
-      <div id="recap-table" className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm print:border-none print:shadow-none">
-        <div className="p-6 border-b border-slate-100 hidden print:block">
-          <h1 className="text-2xl font-bold text-center mb-2">Laporan Absensi Pegawai</h1>
-          <p className="text-center text-slate-500">Dicetak pada: {new Date().toLocaleString()}</p>
+      <div id="recap-table" className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm print:border-none print:shadow-none print:rounded-none">
+        {/* Professional Header for Print */}
+        <div className="hidden print:block p-8 border-b-2 border-slate-900 mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-emerald-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">S</div>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">Si-Abon</h1>
+                <p className="text-xs text-slate-500 uppercase tracking-widest">Sistem Absensi Online</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <h2 className="text-lg font-bold text-slate-800">LAPORAN ABSENSI PEGAWAI</h2>
+              <p className="text-xs text-slate-500">Periode: {startDate || '-'} s/d {endDate || '-'}</p>
+            </div>
+          </div>
+          <div className="flex justify-between text-[10px] text-slate-400 border-t border-slate-100 pt-2">
+            <p>Dicetak oleh: {user.name} ({user.role})</p>
+            <p>Waktu Cetak: {new Date().toLocaleString('id-ID')}</p>
+          </div>
         </div>
+
         <div className="overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+          <table className="w-full text-sm text-left print:text-[10pt]">
+            <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200 print:bg-slate-100 print:text-slate-900">
               <tr>
-                <th className="px-6 py-4">Pegawai</th>
-                <th className="px-6 py-4">Role</th>
-                <th className="px-6 py-4">Tanggal</th>
-                <th className="px-6 py-4">Jam</th>
-                <th className="px-6 py-4">Tipe</th>
-                <th className="px-6 py-4">Lokasi / Kantor</th>
-                <th className="px-6 py-4">Status</th>
+                <th className="px-6 py-4 print:px-2 print:py-2">Pegawai</th>
+                <th className="px-6 py-4 print:px-2 print:py-2">Role</th>
+                <th className="px-6 py-4 print:px-2 print:py-2">Tanggal</th>
+                <th className="px-6 py-4 print:px-2 print:py-2">Jam</th>
+                <th className="px-6 py-4 print:px-2 print:py-2">Tipe</th>
+                <th className="px-6 py-4 print:px-2 print:py-2">Lokasi / Kantor</th>
+                <th className="px-6 py-4 print:px-2 print:py-2">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 print:divide-slate-200">
               {filteredLogs.map(log => (
-                <tr key={log.id} className="hover:bg-slate-50/50">
-                  <td className="px-6 py-4 font-medium text-slate-900">{log.name}</td>
-                  <td className="px-6 py-4 capitalize text-slate-500">{log.role}</td>
-                  <td className="px-6 py-4 font-mono text-slate-600">
+                <tr key={log.id} className="hover:bg-slate-50/50 print:hover:bg-transparent">
+                  <td className="px-6 py-4 font-medium text-slate-900 print:px-2 print:py-2">{log.name}</td>
+                  <td className="px-6 py-4 capitalize text-slate-500 print:px-2 print:py-2 print:text-slate-900">{log.role}</td>
+                  <td className="px-6 py-4 font-mono text-slate-600 print:px-2 print:py-2 print:text-slate-900">
                     {format(new Date(log.timestamp), 'dd/MM/yyyy')}
                   </td>
-                  <td className="px-6 py-4 font-mono text-slate-600">
+                  <td className="px-6 py-4 font-mono text-slate-600 print:px-2 print:py-2 print:text-slate-900">
                     {format(new Date(log.timestamp), 'HH:mm:ss')}
                   </td>
-                  <td className="px-6 py-4">
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${
-                      log.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 
-                      log.type === 'OUT' ? 'bg-orange-100 text-orange-700' :
-                      'bg-blue-100 text-blue-700'
+                  <td className="px-6 py-4 print:px-2 print:py-2">
+                    <span className={`px-2 py-1 rounded text-xs font-bold print:border print:bg-transparent ${
+                      log.type === 'IN' ? 'bg-emerald-100 text-emerald-700 print:border-emerald-200 print:text-emerald-700' : 
+                      log.type === 'OUT' ? 'bg-orange-100 text-orange-700 print:border-orange-200 print:text-orange-700' :
+                      'bg-blue-100 text-blue-700 print:border-blue-200 print:text-blue-700'
                     }`}>
                       {log.type}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-slate-500 text-xs">
+                  <td className="px-6 py-4 text-slate-500 text-xs print:px-2 print:py-2">
                     <div className="font-medium text-slate-700">{log.office_name || '-'}</div>
-                    <div className="text-[10px] opacity-60">
+                    <div className="text-[10px] opacity-60 print:hidden">
                       {log.notes ? (
                         <span className="italic">"{log.notes}"</span>
                       ) : (
@@ -122,7 +139,7 @@ export default function RecapPanel({ user }: { user: User }) {
                       )}
                     </div>
                   </td>
-                  <td className="px-6 py-4">
+                  <td className="px-6 py-4 print:px-2 print:py-2">
                     {log.type === 'IN' ? (
                       log.is_late ? (
                         <span className="text-red-600 font-medium text-xs">Terlambat</span>

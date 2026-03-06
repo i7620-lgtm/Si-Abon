@@ -127,7 +127,7 @@ export const api = {
 
     return {
       ...newUser,
-      office_name: newUser.offices?.name
+      office_name: newUser.offices?.name?.split(':::')[0]
     };
   },
 
@@ -311,7 +311,7 @@ export const api = {
   }): Promise<AttendanceLog[]> => {
     let query = supabase
       .from('attendance')
-      .select('*, users(name, role, department, offices(name))')
+      .select('*, users(*, offices(name))')
       .order('timestamp', { ascending: false });
 
     if (filters.user_id) query = query.eq('user_id', filters.user_id);
@@ -326,7 +326,7 @@ export const api = {
       name: a.users?.name,
       role: a.users?.role,
       department: a.users?.department,
-      office_name: a.users?.offices?.name
+      office_name: a.users?.offices?.name?.split(':::')[0]
     }));
   },
 

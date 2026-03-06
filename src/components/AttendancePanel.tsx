@@ -220,20 +220,27 @@ export default function AttendancePanel({ user }: { user: User }) {
           const minutes = now.getMinutes().toString().padStart(2, '0');
           const currentTime = `${hours}:${minutes}`;
           
-          const isOutTime = currentTime > '12:00';
-          let currentType: 'IN' | 'OUT' = isOutTime ? 'OUT' : 'IN';
-          
-          // Check if we are in the "early departure" window (between start_out_time and end_out_time)
-          // If so, force the button to be OUT type
+          let currentType: 'IN' | 'OUT' = 'IN';
+
           if (selectedOffice) {
-             if (currentTime >= selectedOffice.start_out_time && currentTime <= selectedOffice.end_out_time) {
-               currentType = 'OUT';
-             }
-             // Also switch to OUT if we are past the start_out_time even if it's before 12:00 (unlikely but possible with custom schedules)
-             // or if the user has already clocked IN and it is now past the start_out_time
-             else if (currentTime >= selectedOffice.start_out_time) {
+             const endInParts = selectedOffice.end_in_time.split(':').map(Number);
+             const startOutParts = selectedOffice.start_out_time.split(':').map(Number);
+             
+             const endInMinutes = endInParts[0] * 60 + endInParts[1];
+             const startOutMinutes = startOutParts[0] * 60 + startOutParts[1];
+             const currentMinutes = parseInt(hours) * 60 + parseInt(minutes);
+             
+             // Calculate midpoint: end_in + (start_out - end_in) / 2
+             const midPoint = endInMinutes + ((startOutMinutes - endInMinutes) / 2);
+             
+             if (currentMinutes >= midPoint) {
                 currentType = 'OUT';
+             } else {
+                currentType = 'IN';
              }
+          } else {
+             // Fallback if no office selected
+             currentType = currentTime > '12:00' ? 'OUT' : 'IN';
           }
 
           const hasDoneIn = todayLogs.some(l => l.type === 'IN');
@@ -252,7 +259,6 @@ export default function AttendancePanel({ user }: { user: User }) {
               statusColor = "text-red-600 bg-red-50 border-red-100";
             }
           } else if (currentType === 'OUT' && selectedOffice) {
-             // Logic for early departure warning if needed, though user asked to switch button
              if (currentTime < selectedOffice.start_out_time) {
                statusMessage = "Anda absen mendahului waktu! Absensi akan tetap dicatat dengan status MENDAHULUI.";
                statusColor = "text-orange-600 bg-orange-50 border-orange-100";

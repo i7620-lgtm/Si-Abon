@@ -44,7 +44,7 @@ export default function App() {
 
     loadUsers();
     api.getOffices().then(setOffices);
-  }, []);
+  }, []); // Run once on mount
 
   const loadUsers = async () => {
     const data = await api.getUsers();
@@ -60,6 +60,14 @@ export default function App() {
       const userData = await api.loginSync(email);
       setUser(userData);
       setActiveTab('dashboard');
+      
+      // Force reload to update app if needed (PWA/Cache update)
+      // We use sessionStorage to prevent infinite reload loops
+      const hasReloaded = sessionStorage.getItem('app_updated');
+      if (!hasReloaded) {
+        sessionStorage.setItem('app_updated', 'true');
+        window.location.reload();
+      }
     } catch (e) {
       console.error('User sync failed', e);
       // If sync fails but auth is valid, maybe prompt to complete profile?
@@ -365,6 +373,7 @@ export default function App() {
         onLogout={async () => {
           await supabase.auth.signOut();
           setUser(null);
+          sessionStorage.removeItem('app_updated');
         }} 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 

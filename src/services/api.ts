@@ -5,16 +5,35 @@ export const api = {
   getOffices: async (): Promise<Office[]> => {
     const { data, error } = await supabase.from('offices').select('*');
     if (error) throw error;
-    return data || [];
+    return (data || []).map(o => {
+      const parts = o.name.split(':::');
+      const name = parts[0];
+      let schedule = undefined;
+      let is_tugas_luar = false;
+      if (parts[1]) {
+        try {
+          const meta = JSON.parse(parts[1]);
+          schedule = meta.schedule;
+          is_tugas_luar = meta.is_tugas_luar;
+        } catch (e) {}
+      }
+      return { ...o, name, schedule, is_tugas_luar };
+    });
   },
 
   createOffice: async (office: Omit<Office, 'id'>): Promise<void> => {
-    const { error } = await supabase.from('offices').insert([office]);
+    const { schedule, is_tugas_luar, name, ...rest } = office as any;
+    const meta = JSON.stringify({ schedule, is_tugas_luar });
+    const dbName = `${name}:::${meta}`;
+    const { error } = await supabase.from('offices').insert([{ ...rest, name: dbName }]);
     if (error) throw error;
   },
 
   updateOffice: async (id: number, office: Omit<Office, 'id'>): Promise<void> => {
-    const { error } = await supabase.from('offices').update(office).eq('id', id);
+    const { schedule, is_tugas_luar, name, ...rest } = office as any;
+    const meta = JSON.stringify({ schedule, is_tugas_luar });
+    const dbName = `${name}:::${meta}`;
+    const { error } = await supabase.from('offices').update({ ...rest, name: dbName }).eq('id', id);
     if (error) throw error;
   },
 
@@ -31,11 +50,23 @@ export const api = {
     
     if (error) throw error;
     
-    // Map office name
-    return (data || []).map((u: any) => ({
-      ...u,
-      office_name: u.offices?.name
-    }));
+    return (data || []).map((u: any) => {
+      let assigned_offices = [];
+      let department = u.department || '';
+      if (department.includes(':::')) {
+        const parts = department.split(':::');
+        department = parts[0];
+        try {
+          assigned_offices = JSON.parse(parts[1]);
+        } catch (e) {}
+      }
+      return { 
+        ...u, 
+        department, 
+        assigned_offices, 
+        office_name: u.offices?.name?.split(':::')[0] 
+      };
+    });
   },
 
   assignUserToOffice: async (userId: number, officeId: number): Promise<void> => {
@@ -48,8 +79,10 @@ export const api = {
 
     // Handle new office creation
     if (data.new_office_name) {
+      const meta = JSON.stringify({ schedule: undefined, is_tugas_luar: false });
+      const dbName = `${data.new_office_name}:::${meta}`;
       const { data: newOffice, error: officeError } = await supabase.from('offices').insert([{
-        name: data.new_office_name,
+        name: dbName,
         lat: -6.2088,
         lng: 106.8456,
         radius_meters: 100,
@@ -107,9 +140,21 @@ export const api = {
 
     if (error || !data) throw new Error('User not found');
     
+    let assigned_offices = [];
+    let department = data.department || '';
+    if (department.includes(':::')) {
+      const parts = department.split(':::');
+      department = parts[0];
+      try {
+        assigned_offices = JSON.parse(parts[1]);
+      } catch (e) {}
+    }
+
     return {
       ...data,
-      office_name: data.offices?.name
+      department,
+      assigned_offices,
+      office_name: data.offices?.name?.split(':::')[0]
     };
   },
 
@@ -129,7 +174,32 @@ export const api = {
   },
 
   updateUser: async (id: number, data: Partial<User>): Promise<void> => {
-    const { error } = await supabase.from('users').update(data).eq('id', id);
+    const updateData: any = { ...data };
+    if (data.assigned_offices !== undefined || data.department !== undefined) {
+      // Need current data to preserve one if other is missing
+      const { data: current } = await supabase.from('users').select('department').eq('id', id).single();
+      let currentDept = '';
+      let currentAssigned = [];
+      if (current?.department?.includes(':::')) {
+        const parts = current.department.split(':::');
+        currentDept = parts[0];
+        try { currentAssigned = JSON.parse(parts[1]); } catch (e) {}
+      } else {
+        currentDept = current?.department || '';
+      }
+
+      const dept = data.department !== undefined ? data.department : currentDept;
+      const assigned = data.assigned_offices !== undefined ? data.assigned_offices : currentAssigned;
+      
+      updateData.department = `${dept}:::${JSON.stringify(assigned)}`;
+      delete updateData.assigned_offices;
+    }
+    const { error } = await supabase.from('users').update(updateData).eq('id', id);
+    if (error) throw error;
+  },
+
+  deleteUser: async (id: number): Promise<void> => {
+    const { error } = await supabase.from('users').delete().eq('id', id);
     if (error) throw error;
   },
 

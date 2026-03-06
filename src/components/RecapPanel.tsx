@@ -166,13 +166,16 @@ export default function RecapPanel({ user }: { user: User }) {
                   </td>
                   <td className="px-6 py-4 text-slate-500 text-xs print:px-3 print:py-3">
                     <div className="font-medium text-slate-700">{log.office_name || '-'}</div>
-                    <div className="text-[10px] opacity-60 print:hidden">
-                      {log.notes ? (
-                        <span className="italic">"{log.notes}"</span>
-                      ) : (
-                        `${log.lat.toFixed(5)}, ${log.lng.toFixed(5)}`
-                      )}
-                    </div>
+                    {log.notes && (
+                      <div className="text-[10px] opacity-60 italic mt-1">
+                        "{log.notes}"
+                      </div>
+                    )}
+                    {!log.notes && (
+                      <div className="text-[10px] opacity-60 print:hidden">
+                        {log.lat.toFixed(5)}, {log.lng.toFixed(5)}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 print:px-3 print:py-3">
                     {log.type === 'IN' ? (
@@ -193,6 +196,22 @@ export default function RecapPanel({ user }: { user: User }) {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Signature Section for Print */}
+        <div className="hidden print:grid grid-cols-2 gap-12 mt-16 px-12 pb-12">
+          <div className="text-center">
+            <p className="text-xs text-slate-500 mb-16">Pegawai yang bersangkutan,</p>
+            <div className="border-b border-slate-900 w-48 mx-auto mb-1"></div>
+            <p className="text-sm font-bold text-slate-900">{selectedUser ? selectedUser.name : user.name}</p>
+            <p className="text-[10px] text-slate-500">NIP: {selectedUser?.nip || user.nip || '________________'}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-xs text-slate-500 mb-16">Kepala Sekolah / Atasan Langsung,</p>
+            <div className="border-b border-slate-900 w-48 mx-auto mb-1"></div>
+            <p className="text-sm font-bold text-slate-900">__________________________</p>
+            <p className="text-[10px] text-slate-500">NIP: __________________________</p>
+          </div>
         </div>
       </div>
     </div>

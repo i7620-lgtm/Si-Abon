@@ -49,6 +49,10 @@ export default function App() {
   const loadUsers = async () => {
     const data = await api.getUsers();
     setUsers(data);
+    if (user) {
+      const updatedUser = data.find(u => u.id === user.id);
+      if (updatedUser) setUser(updatedUser);
+    }
   };
 
   const syncUser = async (email: string) => {
@@ -369,7 +373,7 @@ export default function App() {
         {activeTab === 'correction' && <CorrectionPanel user={user} />}
         {activeTab === 'leave' && <LeavePanel user={user} />}
         {activeTab === 'history' && <HistoryPanel user={user} />}
-        {activeTab === 'settings' && (user.role === 'admin' || user.role === 'super_admin') && <SettingsPanel />}
+        {activeTab === 'settings' && (user.role === 'admin' || user.role === 'super_admin') && <SettingsPanel onUserUpdate={loadUsers} />}
         {activeTab === 'recap' && ['admin', 'headmaster', 'dinas', 'super_admin'].includes(user.role) && <RecapPanel user={user} />}
       </main>
     </div>

@@ -4,7 +4,7 @@ import { User, Office } from '../types';
 import LeafletMap from './Map';
 import { Plus, Trash2, Edit2, Save, X, UserPlus } from 'lucide-react';
 
-export default function SettingsPanel({ onUserUpdate }: { onUserUpdate?: () => void }) {
+export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUserUpdate?: () => void }) {
   const [offices, setOffices] = useState<Office[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [editingOffice, setEditingOffice] = useState<Partial<Office> | null>(null);
@@ -24,7 +24,7 @@ export default function SettingsPanel({ onUserUpdate }: { onUserUpdate?: () => v
   const loadData = async () => {
     const [officesData, usersData] = await Promise.all([
       api.getOffices(),
-      api.getUsers()
+      api.getUsers(user)
     ]);
     setOffices(officesData);
     setUsers(usersData);

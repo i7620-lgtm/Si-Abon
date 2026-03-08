@@ -17,7 +17,7 @@ export default function CorrectionPanel({ user }: { user: User }) {
   }, []);
 
   const loadCorrections = async () => {
-    const data = await api.getCorrections(user.role === 'admin' || user.role === 'headmaster' ? undefined : user.id);
+    const data = await api.getCorrections(user.role === 'admin' || user.role === 'headmaster' ? undefined : user.id, user);
     setCorrections(data);
   };
 

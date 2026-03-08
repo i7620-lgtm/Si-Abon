@@ -15,6 +15,7 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
   const [loading, setLoading] = useState(true);
   const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
   const [allCompliance, setAllCompliance] = useState<{name: string, late: number}[]>([]);
+  const [isHoliday, setIsHoliday] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -24,26 +25,35 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
     try {
       const now = new Date();
       const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-      const [todayLogs, allLogs] = await Promise.all([
+      const [todayLogs, allLogs, offices] = await Promise.all([
         api.getAttendance({ user_id: user.id, start_date: today, end_date: today }),
-        api.getAttendance({ user_id: user.id }) // Fetch all history for compliance
+        api.getAttendance({ user_id: user.id }), // Fetch all history for compliance
+        api.getOffices()
       ]);
       
       setTodayLog(todayLogs);
       
+      const myOffice = offices.find(o => o.id === user.office_id);
+      if (myOffice) {
+        const dayOfWeek = now.getDay();
+        if (myOffice.schedule && myOffice.schedule[dayOfWeek]) {
+          setIsHoliday(myOffice.schedule[dayOfWeek].is_off || false);
+        }
+      }
+
       // Calculate compliance (number of late arrivals and early departures)
       const nonCompliant = allLogs.filter(l => l.is_late).length;
       setLateCount(nonCompliant);
 
       if (isAdmin) {
-        const leaves = await api.getLeaves();
+        const leaves = await api.getLeaves(undefined, user);
         setPendingLeaves(leaves.filter((l: any) => l.status === 'pending'));
 
         // Calculate all compliance
-        const users = await api.getUsers();
+        const users = await api.getUsers(user);
         const complianceData = [];
         for (const u of users) {
-           const uLogs = await api.getAttendance({ user_id: u.id });
+           const uLogs = await api.getAttendance({ user_id: u.id, current_user: user });
            const uNonCompliant = uLogs.filter(l => l.is_late).length;
            complianceData.push({ name: u.name, late: uNonCompliant });
         }
@@ -67,6 +77,18 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
         <p className="text-slate-500">Selamat datang di Si-Abon. Semangat bekerja hari ini!</p>
       </div>
 
+      {isHoliday && (
+        <div className="mb-8 bg-blue-50 border border-blue-200 rounded-2xl p-5 flex items-center gap-4 shadow-sm">
+          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 flex-shrink-0">
+            <Calendar size={24} />
+          </div>
+          <div>
+            <h3 className="font-bold text-blue-800 text-lg">Hari Libur</h3>
+            <p className="text-blue-600 text-sm">Hari ini diatur sebagai hari libur untuk kantor Anda. Selamat beristirahat!</p>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {/* Card 1: Jam Masuk */}
         <div 
@@ -77,15 +99,15 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Jam Masuk</p>
               <p className="text-2xl font-bold text-slate-800 mt-1">
-                {inTime ? new Date(inTime.timestamp).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit', hour12: false}) : '--:--'}
+                {isHoliday ? 'Libur' : (inTime ? new Date(inTime.timestamp).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit', hour12: false}) : '--:--')}
               </p>
             </div>
-            <div className={`p-2 rounded-lg ${inTime ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400'}`}>
+            <div className={`p-2 rounded-lg ${isHoliday ? 'bg-blue-100 text-blue-600' : (inTime ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-400')}`}>
               <Clock size={20} />
             </div>
           </div>
           <p className="text-xs text-slate-400">
-            {inTime ? 'Sudah absen masuk' : 'Belum absen masuk'}
+            {isHoliday ? 'Tidak ada absensi' : (inTime ? 'Sudah absen masuk' : 'Belum absen masuk')}
           </p>
         </div>
 
@@ -98,15 +120,15 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Jam Keluar</p>
               <p className="text-2xl font-bold text-slate-800 mt-1">
-                {outTime ? new Date(outTime.timestamp).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit', hour12: false}) : '--:--'}
+                {isHoliday ? 'Libur' : (outTime ? new Date(outTime.timestamp).toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit', hour12: false}) : '--:--')}
               </p>
             </div>
-            <div className={`p-2 rounded-lg ${outTime ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-400'}`}>
+            <div className={`p-2 rounded-lg ${isHoliday ? 'bg-blue-100 text-blue-600' : (outTime ? 'bg-orange-100 text-orange-600' : 'bg-slate-100 text-slate-400')}`}>
               <LogOutIcon size={20} />
             </div>
           </div>
           <p className="text-xs text-slate-400">
-            {outTime ? 'Sudah absen pulang' : 'Belum absen pulang'}
+            {isHoliday ? 'Tidak ada absensi' : (outTime ? 'Sudah absen pulang' : 'Belum absen pulang')}
           </p>
         </div>
 

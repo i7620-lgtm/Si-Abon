@@ -7,8 +7,8 @@ export default function HistoryPanel({ user }: { user: User }) {
   const [logs, setLogs] = useState<AttendanceLog[]>([]);
 
   useEffect(() => {
-    api.getAttendance({ user_id: user.id }).then(setLogs);
-  }, [user.id]);
+    api.getAttendance({ user_id: user.id, current_user: user }).then(setLogs);
+  }, [user]);
 
   return (
     <div className="p-6 h-full overflow-y-auto">

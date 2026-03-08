@@ -2,20 +2,6 @@ import { supabase } from '../lib/supabase';
 import { User, Office, AttendanceLog, LeaveRequest, AttendanceCorrection } from '../types';
 
 export const api = {
-  getServerTime: async (): Promise<Date> => {
-    try {
-      // Fetch from reliable time API to prevent device time spoofing
-      const res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Jakarta');
-      if (res.ok) {
-        const data = await res.json();
-        return new Date(data.datetime);
-      }
-    } catch (e) {
-      console.warn('WorldTimeAPI failed, using local time fallback');
-    }
-    return new Date();
-  },
-
   getOffices: async (): Promise<Office[]> => {
     const { data, error } = await supabase.from('offices').select('*');
     if (error) throw error;
@@ -56,7 +42,7 @@ export const api = {
     if (error) throw error;
   },
 
-  getUsers: async (): Promise<User[]> => {
+  getUsers: async (currentUser?: User): Promise<User[]> => {
     const { data, error } = await supabase
       .from('users')
       .select('*, offices(name)')
@@ -64,7 +50,7 @@ export const api = {
     
     if (error) throw error;
     
-    return (data || []).map((u: any) => {
+    let users = (data || []).map((u: any) => {
       let assigned_offices = [];
       let department = u.department || '';
       if (department.includes(':::')) {
@@ -81,6 +67,12 @@ export const api = {
         office_name: u.offices?.name?.split(':::')[0] 
       };
     });
+
+    if (currentUser && !['super_admin', 'dinas'].includes(currentUser.role)) {
+      users = users.filter(u => u.office_id === currentUser.office_id || u.office_id === null);
+    }
+
+    return users;
   },
 
   assignUserToOffice: async (userId: number, officeId: number): Promise<void> => {
@@ -246,7 +238,7 @@ export const api = {
     }
 
     const office = { ...rawOffice, name, schedule };
-    const now = await api.getServerTime(); // Use server time to prevent spoofing
+    const now = new Date();
     const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)
     
     // Use daily schedule if available, otherwise fallback to default office times
@@ -346,6 +338,7 @@ export const api = {
     user_id?: number;
     start_date?: string;
     end_date?: string;
+    current_user?: User;
   }): Promise<AttendanceLog[]> => {
     let query = supabase
       .from('attendance')
@@ -359,19 +352,26 @@ export const api = {
     const { data, error } = await query;
     if (error) throw error;
 
-    return (data || []).map((a: any) => ({
+    let logs = (data || []).map((a: any) => ({
       ...a,
       name: a.users?.name,
       role: a.users?.role,
       department: a.users?.department,
-      office_name: a.users?.offices?.name?.split(':::')[0]
+      office_name: a.users?.offices?.name?.split(':::')[0],
+      user_office_id: a.users?.office_id
     }));
+
+    if (filters.current_user && !['super_admin', 'dinas'].includes(filters.current_user.role)) {
+      logs = logs.filter(l => l.user_office_id === filters.current_user?.office_id);
+    }
+
+    return logs;
   },
 
-  getLeaves: async (userId?: number): Promise<any[]> => {
+  getLeaves: async (userId?: number, currentUser?: User): Promise<any[]> => {
     let query = supabase
       .from('leave_requests')
-      .select('*, users(name, role)')
+      .select('*, users(name, role, office_id)')
       .order('created_at', { ascending: false });
 
     if (userId) query = query.eq('user_id', userId);
@@ -379,11 +379,18 @@ export const api = {
     const { data, error } = await query;
     if (error) throw error;
 
-    return (data || []).map((l: any) => ({
+    let leaves = (data || []).map((l: any) => ({
       ...l,
       name: l.users?.name,
-      role: l.users?.role
+      role: l.users?.role,
+      user_office_id: l.users?.office_id
     }));
+
+    if (currentUser && !['super_admin', 'dinas'].includes(currentUser.role)) {
+      leaves = leaves.filter(l => l.user_office_id === currentUser.office_id);
+    }
+
+    return leaves;
   },
 
   requestLeave: async (data: any): Promise<void> => {
@@ -423,10 +430,10 @@ export const api = {
     if (error) throw error;
   },
 
-  getCorrections: async (userId?: number): Promise<any[]> => {
+  getCorrections: async (userId?: number, currentUser?: User): Promise<any[]> => {
     let query = supabase
       .from('attendance_corrections')
-      .select('*, users!user_id(name, role)')
+      .select('*, users!user_id(name, role, office_id)')
       .order('created_at', { ascending: false });
 
     if (userId) query = query.eq('user_id', userId);
@@ -434,11 +441,18 @@ export const api = {
     const { data, error } = await query;
     if (error) throw error;
 
-    return (data || []).map((c: any) => ({
+    let corrections = (data || []).map((c: any) => ({
       ...c,
       name: c.users?.name,
-      role: c.users?.role
+      role: c.users?.role,
+      user_office_id: c.users?.office_id
     }));
+
+    if (currentUser && !['super_admin', 'dinas'].includes(currentUser.role)) {
+      corrections = corrections.filter(c => c.user_office_id === currentUser.office_id);
+    }
+
+    return corrections;
   },
 
   requestCorrection: async (data: any): Promise<void> => {

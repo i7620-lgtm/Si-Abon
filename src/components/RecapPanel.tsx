@@ -13,9 +13,9 @@ export default function RecapPanel({ user }: { user: User }) {
   const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
-    api.getAttendance({ start_date: startDate, end_date: endDate }).then(setLogs);
-    api.getUsers().then(setUsers);
-  }, [startDate, endDate]);
+    api.getAttendance({ start_date: startDate, end_date: endDate, current_user: user }).then(setLogs);
+    api.getUsers(user).then(setUsers);
+  }, [startDate, endDate, user]);
 
   const filteredLogs = logs.filter(log => {
     const roleMatch = filterRole ? log.role === filterRole : true;

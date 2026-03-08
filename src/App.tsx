@@ -28,6 +28,7 @@ export default function App() {
   const [isNewOffice, setIsNewOffice] = useState(false);
   const [newOfficeName, setNewOfficeName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [regSupabaseId, setRegSupabaseId] = useState<string | null>(null);
 
   // Login Form State
   const [loginEmail, setLoginEmail] = useState('');
@@ -37,13 +38,21 @@ export default function App() {
   useEffect(() => {
     // Check active session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.email) {
-        syncUser(session.user.email);
+      if (session?.user) {
+        syncUser(session.user);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        syncUser(session.user);
       }
     });
 
     loadUsers();
     api.getOffices().then(setOffices);
+
+    return () => subscription.unsubscribe();
   }, []); // Run once on mount
 
   const loadUsers = async () => {
@@ -55,9 +64,10 @@ export default function App() {
     }
   };
 
-  const syncUser = async (email: string) => {
+  const syncUser = async (authUser: any) => {
+    if (!authUser.email) return;
     try {
-      const userData = await api.loginSync(email);
+      const userData = await api.loginSync(authUser.email);
       setUser(userData);
       setActiveTab('dashboard');
       
@@ -70,9 +80,12 @@ export default function App() {
       }
     } catch (e) {
       console.error('User sync failed', e);
-      // If sync fails but auth is valid, maybe prompt to complete profile?
-      // For now, just logout
-      await supabase.auth.signOut();
+      // If sync fails but auth is valid, it means user is not in our DB yet.
+      // Pre-fill registration form and show it.
+      setRegEmail(authUser.email);
+      setRegName(authUser.user_metadata?.full_name || '');
+      setRegSupabaseId(authUser.id);
+      setShowRegister(true);
       setUser(null);
     }
   };
@@ -87,8 +100,8 @@ export default function App() {
       });
 
       if (error) throw error;
-      if (data.user?.email) {
-        await syncUser(data.user.email);
+      if (data.user) {
+        await syncUser(data.user);
       }
     } catch (e: any) {
       alert('Login gagal: ' + e.message);
@@ -113,27 +126,32 @@ export default function App() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (regPassword !== regConfirmPassword) {
+    if (!regSupabaseId && regPassword !== regConfirmPassword) {
       alert('Password tidak cocok');
       return;
     }
     
     setLoading(true);
     try {
-      // 1. Sign up with Supabase
-      const { data, error } = await supabase.auth.signUp({
-        email: regEmail,
-        password: regPassword,
-      });
+      let finalSupabaseId = regSupabaseId;
 
-      if (error) throw error;
-      if (!data.user) throw new Error('No user data returned');
+      if (!finalSupabaseId) {
+        // 1. Sign up with Supabase
+        const { data, error } = await supabase.auth.signUp({
+          email: regEmail,
+          password: regPassword,
+        });
+
+        if (error) throw error;
+        if (!data.user) throw new Error('No user data returned');
+        finalSupabaseId = data.user.id;
+      }
 
       // 2. Register in local DB
       const newUser = await api.register({
         name: regName,
         email: regEmail,
-        supabase_id: data.user.id,
+        supabase_id: finalSupabaseId,
         office_id: isNewOffice ? undefined : (regOffice || undefined),
         new_office_name: isNewOffice ? newOfficeName : undefined
       });
@@ -141,6 +159,7 @@ export default function App() {
       setUser(newUser);
       setActiveTab('dashboard');
       setShowRegister(false);
+      setRegSupabaseId(null);
       loadUsers();
     } catch (e: any) {
       alert('Gagal mendaftar: ' + e.message);
@@ -179,43 +198,48 @@ export default function App() {
                 <input 
                   type="email" 
                   required
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none"
+                  disabled={!!regSupabaseId}
+                  className={`w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none ${regSupabaseId ? 'bg-slate-100 text-slate-500' : ''}`}
                   value={regEmail}
                   onChange={e => setRegEmail(e.target.value)}
                   placeholder="email@contoh.com"
                 />
               </div>
               
-              <div className="relative">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-                <input 
-                  type={showPassword ? "text" : "password"}
-                  required
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none pr-10"
-                  value={regPassword}
-                  onChange={e => setRegPassword(e.target.value)}
-                  placeholder="******"
-                />
-                <button 
-                  type="button"
-                  className="absolute right-3 top-9 text-slate-400 hover:text-slate-600"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
+              {!regSupabaseId && (
+                <>
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+                    <input 
+                      type={showPassword ? "text" : "password"}
+                      required
+                      className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none pr-10"
+                      value={regPassword}
+                      onChange={e => setRegPassword(e.target.value)}
+                      placeholder="******"
+                    />
+                    <button 
+                      type="button"
+                      className="absolute right-3 top-9 text-slate-400 hover:text-slate-600"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
 
-              <div className="relative">
-                <label className="block text-sm font-medium text-slate-700 mb-1">Konfirmasi Password</label>
-                <input 
-                  type={showPassword ? "text" : "password"}
-                  required
-                  className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none pr-10"
-                  value={regConfirmPassword}
-                  onChange={e => setRegConfirmPassword(e.target.value)}
-                  placeholder="******"
-                />
-              </div>
+                  <div className="relative">
+                    <label className="block text-sm font-medium text-slate-700 mb-1">Konfirmasi Password</label>
+                    <input 
+                      type={showPassword ? "text" : "password"}
+                      required
+                      className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none pr-10"
+                      value={regConfirmPassword}
+                      onChange={e => setRegConfirmPassword(e.target.value)}
+                      placeholder="******"
+                    />
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1">Kantor</label>
@@ -268,7 +292,13 @@ export default function App() {
               </button>
               <button 
                 type="button" 
-                onClick={() => setShowRegister(false)}
+                onClick={() => {
+                  setShowRegister(false);
+                  if (regSupabaseId) {
+                    supabase.auth.signOut();
+                    setRegSupabaseId(null);
+                  }
+                }}
                 className="w-full py-3 text-slate-500 font-medium hover:text-slate-800"
               >
                 Kembali ke Login

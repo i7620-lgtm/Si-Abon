@@ -47,7 +47,7 @@ export default function App() {
   }, []); // Run once on mount
 
   const loadUsers = async () => {
-    const data = await api.getUsers();
+    const data = await api.getUsers(user || undefined);
     setUsers(data);
     if (user) {
       const updatedUser = data.find(u => u.id === user.id);
@@ -386,7 +386,7 @@ export default function App() {
         {activeTab === 'correction' && <CorrectionPanel user={user} />}
         {activeTab === 'leave' && <LeavePanel user={user} />}
         {activeTab === 'history' && <HistoryPanel user={user} />}
-        {activeTab === 'settings' && (user.role === 'admin' || user.role === 'super_admin') && <SettingsPanel onUserUpdate={loadUsers} />}
+        {activeTab === 'settings' && (user.role === 'admin' || user.role === 'super_admin') && <SettingsPanel user={user} onUserUpdate={loadUsers} />}
         {activeTab === 'recap' && ['admin', 'headmaster', 'dinas', 'super_admin'].includes(user.role) && <RecapPanel user={user} />}
       </main>
     </div>

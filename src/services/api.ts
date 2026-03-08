@@ -2,6 +2,20 @@ import { supabase } from '../lib/supabase';
 import { User, Office, AttendanceLog, LeaveRequest, AttendanceCorrection } from '../types';
 
 export const api = {
+  getServerTime: async (): Promise<Date> => {
+    try {
+      // Fetch from reliable time API to prevent device time spoofing
+      const res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Jakarta');
+      if (res.ok) {
+        const data = await res.json();
+        return new Date(data.datetime);
+      }
+    } catch (e) {
+      console.warn('WorldTimeAPI failed, using local time fallback');
+    }
+    return new Date();
+  },
+
   getOffices: async (): Promise<Office[]> => {
     const { data, error } = await supabase.from('offices').select('*');
     if (error) throw error;
@@ -232,7 +246,7 @@ export const api = {
     }
 
     const office = { ...rawOffice, name, schedule };
-    const now = new Date();
+    const now = await api.getServerTime(); // Use server time to prevent spoofing
     const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)
     
     // Use daily schedule if available, otherwise fallback to default office times

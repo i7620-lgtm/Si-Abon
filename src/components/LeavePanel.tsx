@@ -20,7 +20,7 @@ export default function LeavePanel({ user }: { user: User }) {
   }, []);
 
   const loadLeaves = async () => {
-    const data = await api.getLeaves(user.role === 'admin' || user.role === 'headmaster' ? undefined : user.id);
+    const data = await api.getLeaves(user.role === 'admin' || user.role === 'headmaster' ? undefined : user.id, user);
     setLeaves(data);
 
     // Check for unread notifications for the current user

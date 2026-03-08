@@ -228,6 +228,7 @@ export default function AttendancePanel({ user }: { user: User }) {
           let endIn = '00:00';
           let startOut = '00:00';
           let endOut = '00:00';
+          let isOff = false;
 
           if (selectedOffice) {
              startIn = selectedOffice.start_in_time;
@@ -237,7 +238,8 @@ export default function AttendancePanel({ user }: { user: User }) {
 
              if (selectedOffice.schedule && selectedOffice.schedule[dayOfWeek]) {
                 const daySchedule = selectedOffice.schedule[dayOfWeek];
-                if (!daySchedule.is_off) {
+                isOff = daySchedule.is_off || false;
+                if (!isOff) {
                    startIn = daySchedule.start_in || startIn;
                    endIn = daySchedule.end_in || endIn;
                    startOut = daySchedule.start_out || startOut;
@@ -272,7 +274,10 @@ export default function AttendancePanel({ user }: { user: User }) {
           let statusMessage = null;
           let statusColor = '';
 
-          if (alreadyDone) {
+          if (isOff) {
+            statusMessage = "Hari ini diatur sebagai hari libur untuk kantor ini. Anda tidak perlu melakukan absensi.";
+            statusColor = "text-blue-600 bg-blue-50 border-blue-100";
+          } else if (alreadyDone) {
             statusMessage = `Anda sudah melakukan Absen ${currentType === 'IN' ? 'Masuk' : 'Pulang'} hari ini.`;
             statusColor = "text-emerald-600 bg-emerald-50 border-emerald-100";
           } else if (currentType === 'IN' && selectedOffice) {
@@ -295,13 +300,13 @@ export default function AttendancePanel({ user }: { user: User }) {
                 </div>
               )}
               
-              {alreadyDone ? (
+              {isOff || alreadyDone ? (
                 <div className="bg-white p-8 rounded-3xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-center">
                   <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300 mb-4">
                     <Clock size={32} />
                   </div>
-                  <p className="text-slate-500 font-medium">Sesi Absensi Selesai</p>
-                  <p className="text-xs text-slate-400 mt-1">Sampai jumpa di sesi berikutnya!</p>
+                  <p className="text-slate-500 font-medium">{isOff ? 'Hari Libur' : 'Sesi Absensi Selesai'}</p>
+                  <p className="text-xs text-slate-400 mt-1">{isOff ? 'Selamat beristirahat!' : 'Sampai jumpa di sesi berikutnya!'}</p>
                 </div>
               ) : (
                 <button
@@ -337,4 +342,3 @@ export default function AttendancePanel({ user }: { user: User }) {
     </div>
   );
 }
- 

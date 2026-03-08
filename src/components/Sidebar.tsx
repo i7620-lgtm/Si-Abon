@@ -60,7 +60,7 @@ export default function Sidebar({ user, offices, onLogout, activeTab, setActiveT
     { id: 'attendance', label: attendanceIcon === 'OUT' ? 'Absen Pulang' : 'Absen Masuk', icon: attendanceIcon === 'OUT' ? LogOut : Clock, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
     { id: 'correction', label: 'Lupa Absen', icon: ClipboardPen, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
     { id: 'leave', label: 'Cuti', icon: CalendarDays, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
-    { id: 'history', label: 'Riwayat', icon: History, roles: ['employee'] },
+    { id: 'history', label: 'Riwayat', icon: History, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
     { id: 'recap', label: 'Rekap Laporan', icon: FileSpreadsheet, roles: ['admin', 'headmaster', 'dinas'] },
     { id: 'settings', label: 'Pengaturan Kantor', icon: SettingsIcon, roles: ['admin'] },
   ];

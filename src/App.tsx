@@ -410,7 +410,7 @@ export default function App() {
         onUserUpdate={loadUsers}
       />
       
-      <main className="flex-1 h-full overflow-hidden relative">
+      <main className="flex-1 h-full overflow-hidden relative pb-[72px] md:pb-0">
         {activeTab === 'dashboard' && <DashboardPanel user={user} setActiveTab={setActiveTab} />}
         {activeTab === 'attendance' && <AttendancePanel user={user} />}
         {activeTab === 'correction' && <CorrectionPanel user={user} />}

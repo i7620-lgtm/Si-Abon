@@ -416,7 +416,7 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
       </div>
 
       {/* Desktop Table View */}
-      <div className="hidden md:block bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="hidden md:block bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm mb-8">
         <table className="w-full text-sm text-left">
           <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
             <tr>
@@ -496,10 +496,16 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
       </div>
 
       {/* Mobile Card View */}
-      <div className="md:hidden space-y-4">
+      <div className="md:hidden space-y-4 mb-8">
         {users.map(u => (
-          <div key={u.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <div className="flex justify-between items-start mb-3">
+          <div key={u.id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative">
+            <button 
+              onClick={() => handleDeleteUser(u.id)} 
+              className="absolute top-4 right-4 p-2 text-red-500 hover:bg-red-50 rounded-lg"
+            >
+              <Trash2 size={16} />
+            </button>
+            <div className="flex justify-between items-start mb-3 pr-10">
               <div>
                 <h3 className="font-bold text-slate-800">{u.name}</h3>
                 <div className="mt-1">
@@ -515,31 +521,60 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
                   </select>
                 </div>
               </div>
-              {u.office_name ? (
-                <span className="px-2 py-1 bg-slate-100 rounded text-slate-700 text-[10px] font-bold uppercase">
-                  {u.office_name}
-                </span>
-              ) : (
-                <span className="px-2 py-1 bg-slate-50 rounded text-slate-400 text-[10px] italic">
-                  Belum ditempatkan
-                </span>
-              )}
             </div>
             
-            <div className="mt-4">
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
-                Pindahkan Kantor
-              </label>
-              <select 
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                value={u.office_id || ''}
-                onChange={(e) => handleAssignUser(u.id, parseInt(e.target.value))}
-              >
-                <option value="">Pilih Kantor...</option>
-                {offices.map(o => (
-                  <option key={o.id} value={o.id}>{o.name}</option>
-                ))}
-              </select>
+            <div className="mt-4 space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Kantor Utama
+                </label>
+                <select 
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  value={u.office_id || ''}
+                  onChange={(e) => handleAssignUser(u.id, parseInt(e.target.value))}
+                >
+                  <option value="">Pilih Kantor...</option>
+                  {offices.filter(o => !o.is_tugas_luar).map(o => (
+                    <option key={o.id} value={o.id}>{o.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">
+                  Lokasi Tugas Luar
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {offices.filter(o => o.is_tugas_luar).map(o => {
+                    const isAssigned = u.assigned_offices?.includes(o.id);
+                    return (
+                      <button
+                        key={o.id}
+                        onClick={() => {
+                          const current = u.assigned_offices || [];
+                          const next = isAssigned 
+                            ? current.filter(id => id !== o.id)
+                            : [...current, o.id];
+                          api.updateUser(u.id, { assigned_offices: next }).then(() => {
+                            loadData();
+                            if (onUserUpdate) onUserUpdate();
+                          });
+                        }}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all border flex-1 text-center ${
+                          isAssigned 
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                            : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        {o.name}
+                      </button>
+                    );
+                  })}
+                  {offices.filter(o => o.is_tugas_luar).length === 0 && (
+                    <span className="text-xs text-slate-400 italic">Belum ada lokasi tugas luar yang dibuat.</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         ))}

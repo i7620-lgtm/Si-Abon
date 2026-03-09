@@ -123,21 +123,24 @@ export default function Sidebar({ user, offices, onLogout, activeTab, setActiveT
           <p className="text-xs text-slate-400 mt-1 ml-10 hidden md:block">Sistem Absensi Online</p>
         </div>
         
-        <nav className="flex-1 p-2 md:p-4 flex md:flex-col overflow-x-auto md:overflow-visible gap-2 md:gap-0 scrollbar-hide">
-          {filteredItems.map(item => (
-            <button
-              key={item.id}
-              onClick={() => setActiveTab(item.id)}
-              className={`flex-shrink-0 md:w-full flex items-center gap-2 md:gap-3 px-3 py-2 md:px-4 md:py-3 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
-                activeTab === item.id 
-                  ? 'bg-emerald-50 text-emerald-700 shadow-sm' 
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-              }`}
-            >
-              <item.icon size={18} />
-              <span className="hidden md:inline">{item.label}</span>
-            </button>
-          ))}
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 z-50 p-2 flex justify-around md:relative md:border-t-0 md:p-4 md:flex-col md:justify-start gap-1 md:gap-0 overflow-x-auto md:overflow-visible scrollbar-hide">
+          {filteredItems.map(item => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex flex-col md:flex-row items-center justify-center gap-1 md:gap-3 p-2 md:px-4 md:py-3 rounded-xl text-[10px] md:text-sm font-medium transition-all min-w-[64px] flex-shrink-0 ${
+                  isActive 
+                    ? 'text-emerald-600 md:bg-emerald-50 md:text-emerald-700 md:shadow-sm' 
+                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+                }`}
+              >
+                <item.icon className="w-5 h-5 md:w-[18px] md:h-[18px]" />
+                <span className="truncate max-w-[64px] md:max-w-none md:inline">{item.label.split(' ')[0]}</span>
+              </button>
+            );
+          })}
         </nav>
 
         <div className="hidden md:block p-4 border-t border-slate-50">

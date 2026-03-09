@@ -9,6 +9,7 @@ export default function AttendancePanel({ user }: { user: User }) {
   const [step, setStep] = useState<'location' | 'photo' | 'success'>('location');
   const [type, setType] = useState<'IN' | 'OUT'>('IN');
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [offices, setOffices] = useState<Office[]>([]);
@@ -38,6 +39,7 @@ export default function AttendancePanel({ user }: { user: User }) {
 
   useEffect(() => {
     if (navigator.geolocation && selectedOffice) {
+      setLocationError(null);
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const lat = position.coords.latitude;
@@ -48,9 +50,22 @@ export default function AttendancePanel({ user }: { user: User }) {
           const dist = calculateDistance(lat, lng, selectedOffice.lat, selectedOffice.lng);
           setDistance(Math.round(dist));
         },
-        (error) => console.error(error),
-        { enableHighAccuracy: true }
+        (error) => {
+          console.error(error);
+          if (error.code === error.PERMISSION_DENIED) {
+            setLocationError("Akses lokasi ditolak. Silakan izinkan akses lokasi di pengaturan browser/perangkat Anda.");
+          } else if (error.code === error.POSITION_UNAVAILABLE) {
+            setLocationError("Informasi lokasi tidak tersedia. Pastikan GPS perangkat Anda aktif.");
+          } else if (error.code === error.TIMEOUT) {
+            setLocationError("Waktu permintaan lokasi habis. Silakan coba lagi.");
+          } else {
+            setLocationError("Terjadi kesalahan saat mengambil lokasi.");
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
+    } else if (!navigator.geolocation) {
+      setLocationError("Browser atau perangkat Anda tidak mendukung fitur lokasi (GPS).");
     }
   }, [selectedOffice]);
 
@@ -162,6 +177,13 @@ export default function AttendancePanel({ user }: { user: User }) {
         </div>
       )}
 
+      {locationError && (
+        <div className="bg-orange-50 text-orange-700 p-4 rounded-xl text-sm mb-4 border border-orange-200">
+          <p className="font-bold mb-1">⚠️ Masalah Lokasi</p>
+          {locationError}
+        </div>
+      )}
+
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-slate-800 mb-1">Lokasi Absensi</h2>
@@ -185,9 +207,13 @@ export default function AttendancePanel({ user }: { user: User }) {
         </div>
 
         <p className="text-sm text-slate-500 mb-4">
-          {distance !== null && selectedOffice
-            ? `Jarak ke ${selectedOffice.name}: ${distance} meter` 
-            : 'Mencari lokasi...'}
+          {locationError ? (
+            <span className="text-orange-500">Gagal mendapatkan lokasi</span>
+          ) : distance !== null && selectedOffice ? (
+            `Jarak ke ${selectedOffice.name}: ${distance} meter` 
+          ) : (
+            'Mencari lokasi...'
+          )}
         </p>
         
         <div className="h-64 w-full rounded-xl overflow-hidden relative">
@@ -199,8 +225,18 @@ export default function AttendancePanel({ user }: { user: User }) {
               interactive={false}
             />
           ) : (
-            <div className="w-full h-full bg-slate-100 flex items-center justify-center text-slate-400">
-              Memuat Peta...
+            <div className="w-full h-full bg-slate-100 flex flex-col items-center justify-center text-slate-400 p-4 text-center">
+              {locationError ? (
+                <>
+                  <MapPin size={32} className="text-orange-300 mb-2" />
+                  <span className="text-sm text-orange-500">Peta tidak dapat ditampilkan tanpa lokasi</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-8 h-8 border-4 border-slate-300 border-t-emerald-500 rounded-full animate-spin mb-2"></div>
+                  <span>Memuat Peta...</span>
+                </>
+              )}
             </div>
           )}
           

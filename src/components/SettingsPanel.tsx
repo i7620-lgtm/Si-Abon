@@ -274,6 +274,112 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
                 })}
               </div>
             </div>
+
+            {/* Calendar Holidays & Ineffective Days Component */}
+            <div className="col-span-2 mt-8">
+              <h3 className="text-sm font-bold text-slate-800 mb-2 border-b pb-2">Pengaturan Hari Libur Kalender & Hari Tidak Efektif</h3>
+              <p className="text-xs text-slate-500 mb-4">Tambahkan tanggal khusus di mana absensi dilarang (misalnya: hari libur nasional, libur semester/hari tidak efektif).</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tanggal</label>
+                  <input 
+                    type="date" 
+                    id="new-holiday-date"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Nama Hari Libur / Keterangan</label>
+                  <input 
+                    type="text" 
+                    id="new-holiday-name"
+                    placeholder="Contoh: Hari Raya Idul Fitri"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Jenis</label>
+                  <div className="flex gap-2 items-center h-8">
+                    <select 
+                      id="new-holiday-type"
+                      className="w-full px-2 py-1 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    >
+                      <option value="libur">Hari Libur</option>
+                      <option value="tidak_efektif">Hari Tidak Efektif</option>
+                    </select>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const dateInput = document.getElementById('new-holiday-date') as HTMLInputElement;
+                        const nameInput = document.getElementById('new-holiday-name') as HTMLInputElement;
+                        const typeSelect = document.getElementById('new-holiday-type') as HTMLSelectElement;
+                        if (!dateInput?.value || !nameInput?.value) {
+                          alert('Lengkapi tanggal dan nama keterangan hari libur terlebih dahulu.');
+                          return;
+                        }
+                        const currentHolidays = editingOffice.holidays || [];
+                        if (currentHolidays.some(h => h.date === dateInput.value)) {
+                          alert('Tanggal ini sudah dikonfigurasi sebagai hari libur.');
+                          return;
+                        }
+                        const newHoliday = {
+                          date: dateInput.value,
+                          name: nameInput.value,
+                          type: typeSelect.value as 'libur' | 'tidak_efektif'
+                        };
+                        setEditingOffice({
+                          ...editingOffice,
+                          holidays: [...currentHolidays, newHoliday]
+                        });
+                        dateInput.value = '';
+                        nameInput.value = '';
+                      }}
+                      className="px-3 h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-xs transition-colors shrink-0"
+                    >
+                      Tambah
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {(editingOffice.holidays || []).length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">Belum ada hari libur kalender/tidak efektif yang dikonfigurasi.</p>
+                ) : (
+                  [...(editingOffice.holidays || [])].sort((a,b) => a.date.localeCompare(b.date)).map((h, hIdx) => (
+                    <div key={hIdx} className="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-100 shadow-sm hover:border-slate-200 transition-all">
+                      <div className="flex items-center gap-3">
+                        <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide border ${
+                          h.type === 'tidak_efektif' 
+                            ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                            : 'bg-rose-50 text-rose-700 border-rose-200'
+                        }`}>
+                          {h.type === 'tidak_efektif' ? 'Tidak Efektif' : 'Hari Libur'}
+                        </span>
+                        <span className="text-xs font-mono font-bold text-slate-500">{h.date}</span>
+                        <span className="text-xs font-medium text-slate-705 text-slate-800">{h.name}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const current = editingOffice.holidays || [];
+                          // Note that idx here references original index if sorted. To delete correctly:
+                          setEditingOffice({
+                            ...editingOffice,
+                            holidays: current.filter((item) => !(item.date === h.date && item.type === h.type))
+                          });
+                        }}
+                        className="text-[11px] text-red-500 hover:text-red-700 font-bold px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                      >
+                        Hapus
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
@@ -330,11 +436,11 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
                 </div>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="grid grid-cols-2 gap-4 text-sm font-sans">
                 <div className="bg-emerald-50 p-3 rounded-lg">
                   <p className="text-xs text-emerald-600 font-medium mb-1">Jam Masuk</p>
                   {isOff ? (
-                    <p className="font-bold text-red-600">Libur</p>
+                    <p className="font-bold text-red-600 font-sans">Libur</p>
                   ) : (
                     <p className="font-mono text-emerald-900">{startIn} - {endIn}</p>
                   )}
@@ -342,12 +448,39 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
                 <div className="bg-orange-50 p-3 rounded-lg">
                   <p className="text-xs text-orange-600 font-medium mb-1">Jam Pulang</p>
                   {isOff ? (
-                    <p className="font-bold text-red-600">Libur</p>
+                    <p className="font-bold text-red-600 font-sans">Libur</p>
                   ) : (
                     <p className="font-mono text-orange-900">{startOut} - {endOut}</p>
                   )}
                 </div>
               </div>
+
+              {/* List of custom holidays & non-effective days */}
+              {office.holidays && office.holidays.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-slate-100">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Hari Libur Kalender ({office.holidays.length})</p>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                    {office.holidays.map((h, hIdx) => {
+                      const [year, month, day] = h.date.split('-');
+                      const displayDate = `${day}/${month}`;
+                      return (
+                        <div 
+                          key={hIdx} 
+                          className={`flex items-center gap-1.5 px-2 py-0.5 rounded text-[10px] font-medium border ${
+                            h.type === 'tidak_efektif' 
+                              ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                              : 'bg-rose-50 text-rose-700 border-rose-200'
+                          }`}
+                          title={`${h.date}: ${h.name}`}
+                        >
+                          <span className="font-bold">{displayDate}</span>
+                          <span className="text-slate-600 truncate max-w-[120px]">{h.name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}

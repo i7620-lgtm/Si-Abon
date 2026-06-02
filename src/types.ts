@@ -48,6 +48,12 @@ export interface OfficeSchedule {
   is_off?: boolean;
 }
 
+export interface CustomHoliday {
+  date: string; // YYYY-MM-DD
+  name: string; // Deskripsi libur
+  type: 'libur' | 'tidak_efektif';
+}
+
 export interface Office {
   id: number;
   name: string;
@@ -60,6 +66,7 @@ export interface Office {
   end_out_time: string;
   schedule?: Record<number, OfficeSchedule>;
   is_tugas_luar?: boolean;
+  holidays?: CustomHoliday[];
 }
 
 export interface AttendanceLog {

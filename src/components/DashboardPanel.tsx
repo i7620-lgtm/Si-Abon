@@ -16,6 +16,7 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
   const [pendingLeaves, setPendingLeaves] = useState<any[]>([]);
   const [allCompliance, setAllCompliance] = useState<{name: string, late: number}[]>([]);
   const [isHoliday, setIsHoliday] = useState(false);
+  const [holidayName, setHolidayName] = useState('');
 
   useEffect(() => {
     loadData();
@@ -35,9 +36,20 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
       
       const myOffice = offices.find(o => o.id === user.office_id);
       if (myOffice) {
-        const dayOfWeek = now.getDay();
-        if (myOffice.schedule && myOffice.schedule[dayOfWeek]) {
-          setIsHoliday(myOffice.schedule[dayOfWeek].is_off || false);
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const calHoliday = myOffice.holidays?.find((h: any) => h.date === todayStr);
+        if (calHoliday) {
+          setIsHoliday(true);
+          setHolidayName(calHoliday.name);
+        } else {
+          const dayOfWeek = now.getDay();
+          if (myOffice.schedule && myOffice.schedule[dayOfWeek]) {
+            const isOff = myOffice.schedule[dayOfWeek].is_off || false;
+            setIsHoliday(isOff);
+            if (isOff) {
+              setHolidayName('Libur Akhir Pekan / Jadwal Libur');
+            }
+          }
         }
       }
 
@@ -84,7 +96,9 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
           </div>
           <div>
             <h3 className="font-bold text-blue-800 text-lg">Hari Libur</h3>
-            <p className="text-blue-600 text-sm">Hari ini diatur sebagai hari libur untuk kantor Anda. Selamat beristirahat!</p>
+            <p className="text-blue-600 text-sm">
+              Hari ini diatur sebagai {holidayName ? `hari libur (${holidayName})` : 'hari libur'} untuk kantor Anda. Selamat beristirahat!
+            </p>
           </div>
         </div>
       )}

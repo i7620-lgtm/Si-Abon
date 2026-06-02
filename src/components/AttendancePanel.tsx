@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { User, Office, AttendanceLog } from '../types';
 import LeafletMap from './Map';
 import CameraCapture from './CameraCapture';
-import { LogOut, Clock } from 'lucide-react';
+import { LogOut, Clock, MapPin } from 'lucide-react';
 
 export default function AttendancePanel({ user }: { user: User }) {
   const [step, setStep] = useState<'location' | 'photo' | 'success'>('location');
@@ -265,6 +265,7 @@ export default function AttendancePanel({ user }: { user: User }) {
           let startOut = '00:00';
           let endOut = '00:00';
           let isOff = false;
+          let calendarHolidayName = '';
 
           if (selectedOffice) {
              startIn = selectedOffice.start_in_time;
@@ -272,7 +273,13 @@ export default function AttendancePanel({ user }: { user: User }) {
              startOut = selectedOffice.start_out_time;
              endOut = selectedOffice.end_out_time;
 
-             if (selectedOffice.schedule && selectedOffice.schedule[dayOfWeek]) {
+             // Check calendar holidays / non-effective days first
+             const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+             const calHoliday = selectedOffice.holidays?.find((h: any) => h.date === todayStr);
+             if (calHoliday) {
+                isOff = true;
+                calendarHolidayName = calHoliday.name;
+             } else if (selectedOffice.schedule && selectedOffice.schedule[dayOfWeek]) {
                 const daySchedule = selectedOffice.schedule[dayOfWeek];
                 isOff = daySchedule.is_off || false;
                 if (!isOff) {
@@ -311,7 +318,9 @@ export default function AttendancePanel({ user }: { user: User }) {
           let statusColor = '';
 
           if (isOff) {
-            statusMessage = "Hari ini diatur sebagai hari libur untuk kantor ini. Anda tidak perlu melakukan absensi.";
+            statusMessage = calendarHolidayName 
+              ? `Hari ini diatur sebagai hari libur / tidak efektif (${calendarHolidayName}) untuk kantor ini. Anda tidak perlu melakukan absensi.`
+              : "Hari ini diatur sebagai hari libur untuk kantor ini. Anda tidak perlu melakukan absensi.";
             statusColor = "text-blue-600 bg-blue-50 border-blue-100";
           } else if (alreadyDone) {
             statusMessage = `Anda sudah melakukan Absen ${currentType === 'IN' ? 'Masuk' : 'Pulang'} hari ini.`;

@@ -10,28 +10,30 @@ export const api = {
       const name = parts[0];
       let schedule = undefined;
       let is_tugas_luar = false;
+      let holidays = [];
       if (parts[1]) {
         try {
           const meta = JSON.parse(parts[1]);
           schedule = meta.schedule;
           is_tugas_luar = meta.is_tugas_luar;
+          holidays = meta.holidays || [];
         } catch (e) {}
       }
-      return { ...o, name, schedule, is_tugas_luar };
+      return { ...o, name, schedule, is_tugas_luar, holidays };
     });
   },
 
   createOffice: async (office: Omit<Office, 'id'>): Promise<void> => {
-    const { schedule, is_tugas_luar, name, ...rest } = office as any;
-    const meta = JSON.stringify({ schedule, is_tugas_luar });
+    const { schedule, is_tugas_luar, holidays, name, ...rest } = office as any;
+    const meta = JSON.stringify({ schedule, is_tugas_luar, holidays: holidays || [] });
     const dbName = `${name}:::${meta}`;
     const { error } = await supabase.from('offices').insert([{ ...rest, name: dbName }]);
     if (error) throw error;
   },
 
   updateOffice: async (id: number, office: Omit<Office, 'id'>): Promise<void> => {
-    const { schedule, is_tugas_luar, name, ...rest } = office as any;
-    const meta = JSON.stringify({ schedule, is_tugas_luar });
+    const { schedule, is_tugas_luar, holidays, name, ...rest } = office as any;
+    const meta = JSON.stringify({ schedule, is_tugas_luar, holidays: holidays || [] });
     const dbName = `${name}:::${meta}`;
     const { error } = await supabase.from('offices').update({ ...rest, name: dbName }).eq('id', id);
     if (error) throw error;
@@ -230,15 +232,26 @@ export const api = {
     const parts = rawOffice.name.split(':::');
     const name = parts[0];
     let schedule = undefined;
+    let holidays: any[] = [];
     if (parts[1]) {
       try {
         const meta = JSON.parse(parts[1]);
         schedule = meta.schedule;
+        holidays = meta.holidays || [];
       } catch (e) {}
     }
 
-    const office = { ...rawOffice, name, schedule };
+    const office = { ...rawOffice, name, schedule, holidays };
     const now = new Date();
+    
+    // Check specific calendar holidays/non-effective days first
+    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const holidayMatch = holidays.find((h: any) => h.date === todayStr);
+    if (holidayMatch) {
+      const typeLabel = holidayMatch.type === 'tidak_efektif' ? 'Hari Tidak Efektif' : 'Hari Libur';
+      throw new Error(`Hari ini adalah ${typeLabel}: ${holidayMatch.name}. Absensi dilarang.`);
+    }
+
     const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)
     
     // Use daily schedule if available, otherwise fallback to default office times

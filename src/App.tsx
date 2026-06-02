@@ -70,14 +70,6 @@ export default function App() {
       const userData = await api.loginSync(authUser.email);
       setUser(userData);
       setActiveTab('dashboard');
-      
-      // Force reload to update app if needed (PWA/Cache update)
-      // We use sessionStorage to prevent infinite reload loops
-      const hasReloaded = sessionStorage.getItem('app_updated');
-      if (!hasReloaded) {
-        sessionStorage.setItem('app_updated', 'true');
-        window.location.reload();
-      }
     } catch (e) {
       console.error('User sync failed', e);
       // If sync fails but auth is valid, it means user is not in our DB yet.
@@ -403,7 +395,6 @@ export default function App() {
         onLogout={async () => {
           await supabase.auth.signOut();
           setUser(null);
-          sessionStorage.removeItem('app_updated');
         }} 
         activeTab={activeTab} 
         setActiveTab={setActiveTab} 

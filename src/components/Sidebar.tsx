@@ -56,13 +56,13 @@ export default function Sidebar({ user, offices, onLogout, activeTab, setActiveT
   }, [user.office_id, offices]);
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
-    { id: 'attendance', label: attendanceIcon === 'OUT' ? 'Absen Pulang' : 'Absen Masuk', icon: attendanceIcon === 'OUT' ? LogOut : Clock, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
-    { id: 'correction', label: 'Lupa Absen', icon: ClipboardPen, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
-    { id: 'leave', label: 'Cuti', icon: CalendarDays, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
-    { id: 'history', label: 'Riwayat', icon: History, roles: ['employee', 'admin', 'headmaster', 'dinas'] },
-    { id: 'recap', label: 'Rekap Laporan', icon: FileSpreadsheet, roles: ['admin', 'headmaster', 'dinas'] },
-    { id: 'settings', label: 'Pengaturan Kantor', icon: SettingsIcon, roles: ['admin'] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['employee', 'admin', 'headmaster', 'dinas', 'super_admin'] },
+    { id: 'attendance', label: attendanceIcon === 'OUT' ? 'Absen Pulang' : 'Absen Masuk', icon: attendanceIcon === 'OUT' ? LogOut : Clock, roles: ['employee', 'admin', 'headmaster', 'dinas', 'super_admin'] },
+    { id: 'correction', label: 'Lupa Absen', icon: ClipboardPen, roles: ['employee', 'admin', 'headmaster', 'dinas', 'super_admin'] },
+    { id: 'leave', label: 'Cuti', icon: CalendarDays, roles: ['employee', 'admin', 'headmaster', 'dinas', 'super_admin'] },
+    { id: 'history', label: 'Riwayat', icon: History, roles: ['employee', 'admin', 'headmaster', 'dinas', 'super_admin'] },
+    { id: 'recap', label: 'Rekap Laporan', icon: FileSpreadsheet, roles: ['admin', 'headmaster', 'dinas', 'super_admin'] },
+    { id: 'settings', label: 'Pengaturan Kantor', icon: SettingsIcon, roles: ['admin', 'super_admin'] },
   ];
 
   const filteredItems = menuItems.filter(item => item.roles.includes(user.role));

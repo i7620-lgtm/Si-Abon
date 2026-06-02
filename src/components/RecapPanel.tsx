@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
-import { User, AttendanceLog } from '../types';
+import { User, AttendanceLog, Office } from '../types';
 import { format } from 'date-fns';
 import { Printer } from 'lucide-react';
 
 export default function RecapPanel({ user }: { user: User }) {
   const [logs, setLogs] = useState<AttendanceLog[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [offices, setOffices] = useState<Office[]>([]);
   const [filterRole, setFilterRole] = useState('');
   const [filterUser, setFilterUser] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -15,12 +16,38 @@ export default function RecapPanel({ user }: { user: User }) {
   useEffect(() => {
     api.getAttendance({ start_date: startDate, end_date: endDate, current_user: user }).then(setLogs);
     api.getUsers(user).then(setUsers);
+    api.getOffices().then(setOffices);
   }, [startDate, endDate, user]);
 
   const filteredLogs = logs.filter(log => {
     const roleMatch = filterRole ? log.role === filterRole : true;
     const userMatch = filterUser ? log.user_id === parseInt(filterUser) : true;
-    return roleMatch && userMatch;
+    if (!roleMatch || !userMatch) return false;
+
+    // Filter out logs on calendar holidays, non-effective days, and weekly off days
+    const logUser = users.find(u => u.id === log.user_id);
+    const officeId = logUser?.office_id || user.office_id;
+    if (officeId) {
+      const office = offices.find(o => o.id === officeId);
+      if (office) {
+        const logDate = new Date(log.timestamp);
+        const dateStr = `${logDate.getFullYear()}-${String(logDate.getMonth() + 1).padStart(2, '0')}-${String(logDate.getDate()).padStart(2, '0')}`;
+        
+        // Exclude custom holiday / non-effective days
+        const calHoliday = office.holidays?.find((h: any) => h.date === dateStr);
+        if (calHoliday) {
+          return false;
+        }
+
+        // Exclude weekly off days
+        const dayOfWeek = logDate.getDay();
+        if (office.schedule && office.schedule[dayOfWeek]?.is_off) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   });
 
   const selectedUser = users.find(u => u.id === parseInt(filterUser));

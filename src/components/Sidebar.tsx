@@ -123,7 +123,7 @@ export default function Sidebar({ user, offices, onLogout, activeTab, setActiveT
           <p className="text-xs text-slate-400 mt-1 ml-10 hidden md:block">Sistem Absensi Online</p>
         </div>
         
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 z-50 p-2 flex justify-around md:relative md:border-t-0 md:p-4 md:flex-col md:justify-start gap-1 md:gap-0 overflow-x-auto md:overflow-visible scrollbar-hide">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 z-50 p-2 flex justify-around md:relative md:border-t-0 md:p-4 md:flex md:flex-col md:flex-1 md:overflow-y-auto md:justify-start gap-1 md:gap-0 overflow-x-auto scrollbar-hide">
           {filteredItems.map(item => {
             const isActive = activeTab === item.id;
             return (
@@ -143,7 +143,7 @@ export default function Sidebar({ user, offices, onLogout, activeTab, setActiveT
           })}
         </nav>
 
-        <div className="hidden md:block p-4 border-t border-slate-50">
+        <div className="hidden md:flex flex-col mt-auto p-4 border-t border-slate-100 shrink-0">
           <div className="flex items-center gap-3 px-4 py-3 mb-2 cursor-pointer hover:bg-slate-50 rounded-lg transition-colors" onClick={() => setShowProfileModal(true)}>
             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500 font-bold text-xs overflow-hidden">
               {user.photo_url ? (

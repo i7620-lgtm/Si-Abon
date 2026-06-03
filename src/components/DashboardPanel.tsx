@@ -25,9 +25,10 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
   const loadData = async () => {
     try {
       const now = new Date();
-      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const qsStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
+      const qsEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
       const [todayLogs, allLogs, offices] = await Promise.all([
-        api.getAttendance({ user_id: user.id, start_date: today, end_date: today }),
+        api.getAttendance({ user_id: user.id, start_date: qsStart, end_date: qsEnd }),
         api.getAttendance({ user_id: user.id }), // Fetch all history for compliance
         api.getOffices()
       ]);

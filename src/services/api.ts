@@ -297,7 +297,7 @@ export const api = {
          throw new Error(`Absen Masuk belum dimulai (Mulai: ${startIn})`);
        }
        // Allow IN until the cutoff time
-       if (currentTimeShort > cutoffTime) {
+       if (currentTimeShort >= cutoffTime) {
          throw new Error(`Batas akhir Absen Masuk adalah pukul ${cutoffTime}`);
        }
        if (currentTimeShort > endIn) {
@@ -305,11 +305,8 @@ export const api = {
        }
     } else if (data.type === 'OUT') {
        // Allow OUT starting from the cutoff time
-       if (currentTimeShort <= cutoffTime) {
-         throw new Error(`Absen Pulang baru bisa dilakukan setelah pukul ${cutoffTime}`);
-       }
-       if (currentTimeShort > endOut) {
-         throw new Error(`Batas akhir Absen Pulang adalah pukul ${endOut}`);
+       if (currentTimeShort < cutoffTime) {
+         throw new Error(`Absen Pulang baru bisa dilakukan mulai pukul ${cutoffTime}`);
        }
        if (currentTimeShort < startOut) {
          is_late = true; // Early departure
@@ -318,14 +315,15 @@ export const api = {
 
     // Prevent duplicate attendance for the same type on the same day
     if (data.type === 'IN' || data.type === 'OUT') {
-      const today = new Date().toISOString().split('T')[0];
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
+      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
       const { data: existing, error: checkError } = await supabase
         .from('attendance')
         .select('id')
         .eq('user_id', data.user_id)
         .eq('type', data.type)
-        .gte('timestamp', `${today}T00:00:00`)
-        .lte('timestamp', `${today}T23:59:59`)
+        .gte('timestamp', todayStart)
+        .lte('timestamp', todayEnd)
         .maybeSingle();
       
       if (checkError) throw checkError;
@@ -359,8 +357,22 @@ export const api = {
       .order('timestamp', { ascending: false });
 
     if (filters.user_id) query = query.eq('user_id', filters.user_id);
-    if (filters.start_date && filters.start_date !== '') query = query.gte('timestamp', `${filters.start_date}T00:00:00`);
-    if (filters.end_date && filters.end_date !== '') query = query.lte('timestamp', `${filters.end_date}T23:59:59`);
+    
+    if (filters.start_date && filters.start_date !== '') {
+      if (filters.start_date.includes('T')) {
+        query = query.gte('timestamp', filters.start_date);
+      } else {
+        query = query.gte('timestamp', `${filters.start_date}T00:00:00`);
+      }
+    }
+    
+    if (filters.end_date && filters.end_date !== '') {
+      if (filters.end_date.includes('T')) {
+        query = query.lte('timestamp', filters.end_date);
+      } else {
+        query = query.lte('timestamp', `${filters.end_date}T23:59:59`);
+      }
+    }
 
     const { data, error } = await query;
     if (error) throw error;

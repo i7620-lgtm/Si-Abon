@@ -14,7 +14,19 @@ export default function RecapPanel({ user }: { user: User }) {
   const [endDate, setEndDate] = useState('');
 
   useEffect(() => {
-    api.getAttendance({ start_date: startDate, end_date: endDate, current_user: user }).then(setLogs);
+    let qsStart = startDate;
+    let qsEnd = endDate;
+
+    if (startDate) {
+      const [y, m, d] = startDate.split('-').map(Number);
+      qsStart = new Date(y, m - 1, d, 0, 0, 0).toISOString();
+    }
+    if (endDate) {
+      const [y, m, d] = endDate.split('-').map(Number);
+      qsEnd = new Date(y, m - 1, d, 23, 59, 59).toISOString();
+    }
+
+    api.getAttendance({ start_date: qsStart, end_date: qsEnd, current_user: user }).then(setLogs);
     api.getUsers(user).then(setUsers);
     api.getOffices().then(setOffices);
   }, [startDate, endDate, user]);

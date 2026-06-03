@@ -33,8 +33,10 @@ export default function AttendancePanel({ user }: { user: User }) {
     });
 
     // Fetch today's logs to prevent duplicates
-    const today = new Date().toISOString().split('T')[0];
-    api.getAttendance({ user_id: user.id, start_date: today, end_date: today }).then(setTodayLogs);
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+    api.getAttendance({ user_id: user.id, start_date: todayStart, end_date: todayEnd }).then(setTodayLogs);
   }, [user.id, user.office_id, user.assigned_offices]);
 
   useEffect(() => {
@@ -99,8 +101,10 @@ export default function AttendancePanel({ user }: { user: User }) {
       });
       setStep('success');
       // Refresh logs
-      const today = new Date().toISOString().split('T')[0];
-      api.getAttendance({ user_id: user.id, start_date: today, end_date: today }).then(setTodayLogs);
+      const now = new Date();
+      const qsStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
+      const qsEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+      api.getAttendance({ user_id: user.id, start_date: qsStart, end_date: qsEnd }).then(setTodayLogs);
     } catch (e: any) {
       setErrorMsg(e.message || 'Gagal mengirim absensi');
       setStep('location'); // Go back to show error

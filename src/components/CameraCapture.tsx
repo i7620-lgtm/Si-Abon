@@ -55,14 +55,14 @@ export default function CameraCapture({ onCapture }: CameraCaptureProps) {
               screenshotFormat="image/webp"
               videoConstraints={{ 
                 facingMode: 'user',
-                width: { ideal: 720 },
-                height: { ideal: 1280 },
+                width: { ideal: 360 },
+                height: { ideal: 640 },
                 aspectRatio: 0.75
               }}
               onUserMediaError={handleUserMediaError}
               className="w-full h-full object-cover"
               mirrored={true}
-              screenshotQuality={0.6}
+              screenshotQuality={0.5}
               disablePictureInPicture={false}
             />
           )}

@@ -47,7 +47,7 @@ export const api = {
   getUsers: async (currentUser?: User): Promise<User[]> => {
     const { data, error } = await supabase
       .from('users')
-      .select('*, offices(name)')
+      .select('id, name, nip, email, role, department, office_id, leave_quota, offices(name)')
       .order('name');
     
     if (error) throw error;
@@ -350,10 +350,15 @@ export const api = {
     start_date?: string;
     end_date?: string;
     current_user?: User;
+    include_photo?: boolean;
   }): Promise<AttendanceLog[]> => {
+    let selectString = filters.include_photo
+      ? '*, users(id, name, nip, email, role, department, office_id, offices(name))'
+      : 'id, user_id, type, timestamp, lat, lng, is_late, notes, users(id, name, nip, email, role, department, office_id, offices(name))';
+
     let query = supabase
       .from('attendance')
-      .select('*, users(*, offices(name))')
+      .select(selectString)
       .order('timestamp', { ascending: false });
 
     if (filters.user_id) query = query.eq('user_id', filters.user_id);

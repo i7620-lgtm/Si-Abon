@@ -7,7 +7,7 @@ export default function HistoryPanel({ user }: { user: User }) {
   const [logs, setLogs] = useState<AttendanceLog[]>([]);
 
   useEffect(() => {
-    api.getAttendance({ user_id: user.id, current_user: user }).then(setLogs);
+    api.getAttendance({ user_id: user.id, current_user: user, include_photo: true }).then(setLogs);
   }, [user]);
 
   return (

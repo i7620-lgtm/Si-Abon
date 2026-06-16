@@ -244,30 +244,59 @@ export const api = {
     const office = { ...rawOffice, name, schedule, holidays };
     const now = new Date();
     
-    // Check specific calendar holidays/non-effective days first
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const holidayMatch = holidays.find((h: any) => h.date === todayStr);
-    if (holidayMatch) {
-      const typeLabel = holidayMatch.type === 'tidak_efektif' ? 'Hari Tidak Efektif' : 'Hari Libur';
-      throw new Error(`Hari ini adalah ${typeLabel}: ${holidayMatch.name}. Absensi dilarang.`);
+    // Check if there is an active piket schedule for this user today
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
+    
+    const { data: piketLogs } = await supabase
+      .from('attendance')
+      .select('notes')
+      .eq('user_id', data.user_id)
+      .eq('type', 'TUGAS')
+      .gte('timestamp', todayStart)
+      .lte('timestamp', todayEnd);
+
+    const piketLog = piketLogs?.find(l => l.notes?.startsWith('PIKET_SCHEDULE:::'));
+    let piketConfig = null;
+    if (piketLog) {
+      try {
+        piketConfig = JSON.parse(piketLog.notes.replace('PIKET_SCHEDULE:::', ''));
+      } catch (e) {}
     }
 
-    const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)
-    
-    // Use daily schedule if available, otherwise fallback to default office times
     let startIn = office.start_in_time;
     let endIn = office.end_in_time;
     let startOut = office.start_out_time;
     let endOut = office.end_out_time;
     let isOff = false;
 
-    if (office.schedule && office.schedule[dayOfWeek]) {
-      const daySchedule = office.schedule[dayOfWeek];
-      startIn = daySchedule.start_in || startIn;
-      endIn = daySchedule.end_in || endIn;
-      startOut = daySchedule.start_out || startOut;
-      endOut = daySchedule.end_out || endOut;
-      isOff = daySchedule.is_off || false;
+    if (piketConfig) {
+      // Overwrite working hours and bypass holidays/off-days
+      startIn = piketConfig.start_in_time;
+      endIn = piketConfig.end_in_time;
+      startOut = piketConfig.start_out_time;
+      endOut = piketConfig.end_out_time;
+      isOff = false;
+    } else {
+      // Check specific calendar holidays/non-effective days first
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const holidayMatch = holidays.find((h: any) => h.date === todayStr);
+      if (holidayMatch) {
+        const typeLabel = holidayMatch.type === 'tidak_efektif' ? 'Hari Tidak Efektif' : 'Hari Libur';
+        throw new Error(`Hari ini adalah ${typeLabel}: ${holidayMatch.name}. Absensi dilarang.`);
+      }
+
+      const dayOfWeek = now.getDay(); // 0 (Sun) to 6 (Sat)
+      
+      // Use daily schedule if available, otherwise fallback to default office times
+      if (office.schedule && office.schedule[dayOfWeek]) {
+        const daySchedule = office.schedule[dayOfWeek];
+        startIn = daySchedule.start_in || startIn;
+        endIn = daySchedule.end_in || endIn;
+        startOut = daySchedule.start_out || startOut;
+        endOut = daySchedule.end_out || endOut;
+        isOff = daySchedule.is_off || false;
+      }
     }
 
     if (isOff) {
@@ -276,7 +305,6 @@ export const api = {
 
     const hours = now.getHours().toString().padStart(2, '0');
     const minutes = now.getMinutes().toString().padStart(2, '0');
-    const seconds = now.getSeconds().toString().padStart(2, '0');
     const currentTimeShort = `${hours}:${minutes}`;
 
     let is_late = false;
@@ -315,8 +343,6 @@ export const api = {
 
     // Prevent duplicate attendance for the same type on the same day
     if (data.type === 'IN' || data.type === 'OUT') {
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
-      const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
       const { data: existing, error: checkError } = await supabase
         .from('attendance')
         .select('id')
@@ -343,6 +369,37 @@ export const api = {
     }]);
 
     if (error) throw error;
+  },
+
+  deleteAttendance: async (id: number): Promise<void> => {
+    // 1. Try hard deletion first
+    const { error: deleteError } = await supabase.from('attendance').delete().eq('id', id);
+    if (!deleteError) return;
+
+    // 2. Fallback to soft deletion if RLS restricts DELETE operations
+    const { data: record, error: fetchError } = await supabase
+      .from('attendance')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchError || !record) {
+      throw deleteError || fetchError || new Error('Record not found');
+    }
+
+    if (record.notes && record.notes.startsWith('PIKET_SCHEDULE:::')) {
+      const updatedNotes = record.notes.replace('PIKET_SCHEDULE:::', 'PIKET_DELETED:::');
+      const { error: updateError } = await supabase
+        .from('attendance')
+        .update({ notes: updatedNotes })
+        .eq('id', id);
+
+      if (updateError) {
+        throw updateError;
+      }
+    } else {
+      throw deleteError;
+    }
   },
 
   getAttendance: async (filters: {

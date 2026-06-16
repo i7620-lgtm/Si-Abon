@@ -27,11 +27,15 @@ export default function HistoryPanel({ user }: { user: User }) {
             <div className="flex-1">
               <div className="flex items-center justify-between mb-1">
                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                  log.notes?.startsWith('PIKET:') ? 'bg-indigo-100 text-indigo-700' :
+                  log.type === 'TUGAS' && log.notes?.startsWith('PIKET_SCHEDULE:::') ? 'bg-purple-100 text-purple-700' :
                   log.type === 'IN' ? 'bg-emerald-100 text-emerald-700' : 
                   log.type === 'OUT' ? 'bg-orange-100 text-orange-700' :
                   'bg-blue-100 text-blue-700'
                 }`}>
-                  {log.type === 'IN' ? 'Masuk' : log.type === 'OUT' ? 'Pulang' : log.type}
+                  {log.notes?.startsWith('PIKET:') ? `Piket - ${log.type === 'IN' ? 'Masuk' : 'Pulang'}` :
+                   log.type === 'TUGAS' && log.notes?.startsWith('PIKET_SCHEDULE:::') ? 'Jadwal Piket' :
+                   log.type === 'IN' ? 'Masuk' : log.type === 'OUT' ? 'Pulang' : log.type}
                 </span>
                 <span className="text-xs text-slate-400">
                   {format(new Date(log.timestamp), 'dd MMM yyyy')}
@@ -42,7 +46,9 @@ export default function HistoryPanel({ user }: { user: User }) {
               </p>
               {log.notes ? (
                 <p className="text-xs text-slate-600 italic mt-1">
-                  "{log.notes}"
+                  "{log.notes.startsWith('PIKET_SCHEDULE:::') 
+                     ? JSON.parse(log.notes.replace('PIKET_SCHEDULE:::', '')).notes || 'Tugas Piket'
+                     : log.notes.replace(/^PIKET:\s*/, '')}"
                 </p>
               ) : (
                 <p className="text-xs text-slate-500 truncate max-w-[200px]">

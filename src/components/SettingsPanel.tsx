@@ -280,12 +280,20 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
               <h3 className="text-sm font-bold text-slate-800 mb-2 border-b pb-2">Pengaturan Hari Libur Kalender & Hari Tidak Efektif</h3>
               <p className="text-xs text-slate-500 mb-4">Tambahkan tanggal khusus di mana absensi dilarang (misalnya: hari libur nasional, libur semester/hari tidak efektif).</p>
               
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3 bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tanggal</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tanggal Awal</label>
                   <input 
                     type="date" 
-                    id="new-holiday-date"
+                    id="new-holiday-start-date"
+                    className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Tanggal Akhir (Opsional)</label>
+                  <input 
+                    type="date" 
+                    id="new-holiday-end-date"
                     className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
@@ -294,7 +302,7 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
                   <input 
                     type="text" 
                     id="new-holiday-name"
-                    placeholder="Contoh: Hari Raya Idul Fitri"
+                    placeholder="Contoh: Libur Semester Ganjil"
                     className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
@@ -311,28 +319,77 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
                     <button 
                       type="button"
                       onClick={() => {
-                        const dateInput = document.getElementById('new-holiday-date') as HTMLInputElement;
+                        const startInput = document.getElementById('new-holiday-start-date') as HTMLInputElement;
+                        const endInput = document.getElementById('new-holiday-end-date') as HTMLInputElement;
                         const nameInput = document.getElementById('new-holiday-name') as HTMLInputElement;
                         const typeSelect = document.getElementById('new-holiday-type') as HTMLSelectElement;
-                        if (!dateInput?.value || !nameInput?.value) {
-                          alert('Lengkapi tanggal dan nama keterangan hari libur terlebih dahulu.');
+                        
+                        if (!startInput?.value || !nameInput?.value) {
+                          alert('Lengkapi Tanggal Awal dan Nama Keterangan terlebih dahulu.');
                           return;
                         }
+
+                        const startDateStr = startInput.value;
+                        const endDateStr = endInput?.value || startDateStr;
+
+                        const [sYear, sMonth, sDay] = startDateStr.split('-').map(Number);
+                        const [eYear, eMonth, eDay] = endDateStr.split('-').map(Number);
+
+                        const startD = new Date(sYear, sMonth - 1, sDay);
+                        const endD = new Date(eYear, eMonth - 1, eDay);
+
+                        if (startD > endD) {
+                          alert('Tanggal Akhir tidak boleh lebih awal dari Tanggal Awal.');
+                          return;
+                        }
+
+                        // Generate all dates in range
+                        const datesToAdd: string[] = [];
+                        const currentD = new Date(startD);
+                        let count = 0;
+                        while (currentD <= endD && count < 366) {
+                          const y = currentD.getFullYear();
+                          const m = String(currentD.getMonth() + 1).padStart(2, '0');
+                          const d = String(currentD.getDate()).padStart(2, '0');
+                          datesToAdd.push(`${y}-${m}-${d}`);
+                          currentD.setDate(currentD.getDate() + 1);
+                          count++;
+                        }
+
                         const currentHolidays = editingOffice.holidays || [];
-                        if (currentHolidays.some(h => h.date === dateInput.value)) {
-                          alert('Tanggal ini sudah dikonfigurasi sebagai hari libur.');
-                          return;
+                        const duplicateDates: string[] = [];
+                        const newHolidays = [...currentHolidays];
+
+                        datesToAdd.forEach(dateStr => {
+                          if (currentHolidays.some(h => h.date === dateStr)) {
+                            duplicateDates.push(dateStr);
+                          } else {
+                            newHolidays.push({
+                              date: dateStr,
+                              name: nameInput.value,
+                              type: typeSelect.value as 'libur' | 'tidak_efektif'
+                            });
+                          }
+                        });
+
+                        if (duplicateDates.length > 0) {
+                          if (duplicateDates.length === datesToAdd.length) {
+                            alert('Semua tanggal dalam rentang tersebut sudah terdaftar sebagai hari libur.');
+                            return;
+                          } else {
+                            if (!confirm(`Beberapa tanggal (${duplicateDates.join(', ')}) sudah terdaftar sebagai hari libur sebelumnya. Apakah Anda ingin mengabaikan tanggal tersebut dan tetap mendaftarkan tanggal lainnya?`)) {
+                              return;
+                            }
+                          }
                         }
-                        const newHoliday = {
-                          date: dateInput.value,
-                          name: nameInput.value,
-                          type: typeSelect.value as 'libur' | 'tidak_efektif'
-                        };
+
                         setEditingOffice({
                           ...editingOffice,
-                          holidays: [...currentHolidays, newHoliday]
+                          holidays: newHolidays
                         });
-                        dateInput.value = '';
+
+                        startInput.value = '';
+                        if (endInput) endInput.value = '';
                         nameInput.value = '';
                       }}
                       className="px-3 h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-lg text-xs transition-colors shrink-0"

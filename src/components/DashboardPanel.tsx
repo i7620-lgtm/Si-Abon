@@ -17,6 +17,8 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
   const [allCompliance, setAllCompliance] = useState<{name: string, late: number}[]>([]);
   const [isHoliday, setIsHoliday] = useState(false);
   const [holidayName, setHolidayName] = useState('');
+  const [hasPiket, setHasPiket] = useState(false);
+  const [piketNotes, setPiketNotes] = useState('');
 
   useEffect(() => {
     loadData();
@@ -35,20 +37,35 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
       
       setTodayLog(todayLogs);
       
-      const myOffice = offices.find(o => o.id === user.office_id);
-      if (myOffice) {
-        const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-        const calHoliday = myOffice.holidays?.find((h: any) => h.date === todayStr);
-        if (calHoliday) {
-          setIsHoliday(true);
-          setHolidayName(calHoliday.name);
-        } else {
-          const dayOfWeek = now.getDay();
-          if (myOffice.schedule && myOffice.schedule[dayOfWeek]) {
-            const isOff = myOffice.schedule[dayOfWeek].is_off || false;
-            setIsHoliday(isOff);
-            if (isOff) {
-              setHolidayName('Libur Akhir Pekan / Jadwal Libur');
+      const piketLog = todayLogs.find(l => l.type === 'TUGAS' && l.notes?.startsWith('PIKET_SCHEDULE:::'));
+      let piketConf: any = null;
+      if (piketLog) {
+        try {
+          piketConf = JSON.parse(piketLog.notes.replace('PIKET_SCHEDULE:::',''));
+        } catch(e){}
+      }
+
+      if (piketConf) {
+        setHasPiket(true);
+        setPiketNotes(piketConf.notes || 'Piket Khusus');
+        setIsHoliday(false);
+      } else {
+        setHasPiket(false);
+        const myOffice = offices.find(o => o.id === user.office_id);
+        if (myOffice) {
+          const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+          const calHoliday = myOffice.holidays?.find((h: any) => h.date === todayStr);
+          if (calHoliday) {
+            setIsHoliday(true);
+            setHolidayName(calHoliday.name);
+          } else {
+            const dayOfWeek = now.getDay();
+            if (myOffice.schedule && myOffice.schedule[dayOfWeek]) {
+              const isOff = myOffice.schedule[dayOfWeek].is_off || false;
+              setIsHoliday(isOff);
+              if (isOff) {
+                setHolidayName('Libur Akhir Pekan / Jadwal Libur');
+              }
             }
           }
         }
@@ -89,6 +106,20 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
         <h1 className="text-2xl font-bold text-slate-800">Halo, {user.name.split(' ')[0]}! 👋</h1>
         <p className="text-slate-500">Selamat datang di Si-Abon. Semangat bekerja hari ini!</p>
       </div>
+
+      {hasPiket && (
+        <div className="mb-8 bg-indigo-50 border border-indigo-200 rounded-2xl p-5 flex items-center gap-4 shadow-sm animate-pulse">
+          <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600 flex-shrink-0 text-xl font-bold">
+            📋
+          </div>
+          <div>
+            <h3 className="font-bold text-indigo-800 text-lg">Tugas Piket Hari Ini</h3>
+            <p className="text-indigo-600 text-sm">
+              Hari ini Anda dijadwalkan untuk melaksanakan Piket khusus: <strong>{piketNotes}</strong>. Silakan menuju panel absensi untuk melapor.
+            </p>
+          </div>
+        </div>
+      )}
 
       {isHoliday && (
         <div className="mb-8 bg-blue-50 border border-blue-200 rounded-2xl p-5 flex items-center gap-4 shadow-sm">

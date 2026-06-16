@@ -18,6 +18,30 @@ export default function AttendancePanel({ user }: { user: User }) {
   const [todayLogs, setTodayLogs] = useState<AttendanceLog[]>([]);
   const [tugasNotes, setTugasNotes] = useState('');
 
+  const piketLog = todayLogs.find(l => l.type === 'TUGAS' && l.notes?.startsWith('PIKET_SCHEDULE:::'));
+  let piketConfig: any = null;
+  if (piketLog) {
+    try {
+      piketConfig = JSON.parse(piketLog.notes.replace('PIKET_SCHEDULE:::', ''));
+    } catch (e) {}
+  }
+
+  const effectiveOffice = piketConfig 
+    ? {
+        id: -999,
+        name: `Piket: ${piketConfig.notes || 'Tugas Piket'}`,
+        lat: piketConfig.lat,
+        lng: piketConfig.lng,
+        radius_meters: piketConfig.radius_meters || 100,
+        start_in_time: piketConfig.start_in_time,
+        end_in_time: piketConfig.end_in_time,
+        start_out_time: piketConfig.start_out_time,
+        end_out_time: piketConfig.end_out_time,
+        is_tugas_luar: false,
+        holidays: []
+      } as any
+    : selectedOffice;
+
   useEffect(() => {
     // Fetch all offices and filter for user
     api.getOffices().then(allOffices => {
@@ -40,7 +64,7 @@ export default function AttendancePanel({ user }: { user: User }) {
   }, [user.id, user.office_id, user.assigned_offices]);
 
   useEffect(() => {
-    if (navigator.geolocation && selectedOffice) {
+    if (navigator.geolocation && effectiveOffice) {
       setLocationError(null);
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -49,7 +73,7 @@ export default function AttendancePanel({ user }: { user: User }) {
           setLocation({ lat, lng });
           
           // Calculate distance to selected office
-          const dist = calculateDistance(lat, lng, selectedOffice.lat, selectedOffice.lng);
+          const dist = calculateDistance(lat, lng, effectiveOffice.lat, effectiveOffice.lng);
           setDistance(Math.round(dist));
         },
         (error) => {
@@ -69,7 +93,7 @@ export default function AttendancePanel({ user }: { user: User }) {
     } else if (!navigator.geolocation) {
       setLocationError("Browser atau perangkat Anda tidak mendukung fitur lokasi (GPS).");
     }
-  }, [selectedOffice]);
+  }, [effectiveOffice]);
 
   const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
     const R = 6371e3; // metres
@@ -97,7 +121,7 @@ export default function AttendancePanel({ user }: { user: User }) {
         lat: location.lat,
         lng: location.lng,
         photo_url: imageSrc,
-        notes: selectedOffice?.is_tugas_luar ? `TUGAS LUAR: ${selectedOffice.name}${tugasNotes ? ` - ${tugasNotes}` : ''}` : undefined
+        notes: piketConfig ? `PIKET: ${piketConfig.notes || 'Tugas Piket'}` : (selectedOffice?.is_tugas_luar ? `TUGAS LUAR: ${selectedOffice.name}${tugasNotes ? ` - ${tugasNotes}` : ''}` : undefined)
       });
       setStep('success');
       // Refresh logs
@@ -113,7 +137,7 @@ export default function AttendancePanel({ user }: { user: User }) {
     }
   };
 
-  const isWithinRange = distance !== null && selectedOffice && distance <= selectedOffice.radius_meters;
+  const isWithinRange = distance !== null && effectiveOffice && distance <= effectiveOffice.radius_meters;
   const canAbsen = isWithinRange;
 
   if (offices.length === 0) {
@@ -191,40 +215,52 @@ export default function AttendancePanel({ user }: { user: User }) {
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-slate-800 mb-1">Lokasi Absensi</h2>
-          <div className="flex flex-wrap gap-2 mt-3">
-            {offices.map(o => (
-              <button
-                key={o.id}
-                onClick={() => setSelectedOffice(o)}
-                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
-                  selectedOffice?.id === o.id 
-                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-600/20' 
-                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                {o.is_tugas_luar ? '📍 ' : '🏢 '}
-                {o.name}
-                {o.is_tugas_luar && <span className="ml-1 opacity-70">(Tugas Luar)</span>}
-              </button>
-            ))}
-          </div>
+          {piketConfig ? (
+            <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 flex items-start gap-3 mt-3">
+              <span className="text-xl">📋</span>
+              <div>
+                <h4 className="font-bold text-indigo-900 text-sm">Mode Tugas Piket Aktif</h4>
+                <p className="text-xs text-indigo-700 leading-relaxed">
+                  Hari ini Anda memiliki tugas Piket khusus: <strong className="underline">{piketConfig.notes || 'Tugas Piket'}</strong>. Anda harus mengabsen menggunakan jam dan lokasi piket khusus ini.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2 mt-3">
+              {offices.map(o => (
+                <button
+                  key={o.id}
+                  onClick={() => setSelectedOffice(o)}
+                  className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                    selectedOffice?.id === o.id 
+                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-lg shadow-emerald-600/20' 
+                      : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {o.is_tugas_luar ? '📍 ' : '🏢 '}
+                  {o.name}
+                  {o.is_tugas_luar && <span className="ml-1 opacity-70">(Tugas Luar)</span>}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <p className="text-sm text-slate-500 mb-4">
           {locationError ? (
             <span className="text-orange-500">Gagal mendapatkan lokasi</span>
-          ) : distance !== null && selectedOffice ? (
-            `Jarak ke ${selectedOffice.name}: ${distance} meter` 
+          ) : distance !== null && effectiveOffice ? (
+            `Jarak ke ${effectiveOffice.name}: ${distance} meter` 
           ) : (
             'Mencari lokasi...'
           )}
         </p>
         
         <div className="h-64 w-full rounded-xl overflow-hidden relative">
-          {location && selectedOffice ? (
+          {location && effectiveOffice ? (
             <LeafletMap 
               center={[location.lat, location.lng]} 
-              radius={selectedOffice.radius_meters}
+              radius={effectiveOffice.radius_meters}
               markers={[{ lat: location.lat, lng: location.lng }]}
               interactive={false}
             />
@@ -271,26 +307,30 @@ export default function AttendancePanel({ user }: { user: User }) {
           let isOff = false;
           let calendarHolidayName = '';
 
-          if (selectedOffice) {
-             startIn = selectedOffice.start_in_time;
-             endIn = selectedOffice.end_in_time;
-             startOut = selectedOffice.start_out_time;
-             endOut = selectedOffice.end_out_time;
+          if (effectiveOffice) {
+             startIn = effectiveOffice.start_in_time;
+             endIn = effectiveOffice.end_in_time;
+             startOut = effectiveOffice.start_out_time;
+             endOut = effectiveOffice.end_out_time;
 
-             // Check calendar holidays / non-effective days first
-             const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-             const calHoliday = selectedOffice.holidays?.find((h: any) => h.date === todayStr);
-             if (calHoliday) {
-                isOff = true;
-                calendarHolidayName = calHoliday.name;
-             } else if (selectedOffice.schedule && selectedOffice.schedule[dayOfWeek]) {
-                const daySchedule = selectedOffice.schedule[dayOfWeek];
-                isOff = daySchedule.is_off || false;
-                if (!isOff) {
-                   startIn = daySchedule.start_in || startIn;
-                   endIn = daySchedule.end_in || endIn;
-                   startOut = daySchedule.start_out || startOut;
-                   endOut = daySchedule.end_out || endOut;
+             if (piketConfig) {
+                isOff = false;
+             } else {
+                // Check calendar holidays / non-effective days first
+                const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+                const calHoliday = effectiveOffice.holidays?.find((h: any) => h.date === todayStr);
+                if (calHoliday) {
+                   isOff = true;
+                   calendarHolidayName = calHoliday.name;
+                } else if (effectiveOffice.schedule && effectiveOffice.schedule[dayOfWeek]) {
+                   const daySchedule = effectiveOffice.schedule[dayOfWeek];
+                   isOff = daySchedule.is_off || false;
+                   if (!isOff) {
+                      startIn = daySchedule.start_in || startIn;
+                      endIn = daySchedule.end_in || endIn;
+                      startOut = daySchedule.start_out || startOut;
+                      endOut = daySchedule.end_out || endOut;
+                   }
                 }
              }
 
@@ -329,12 +369,12 @@ export default function AttendancePanel({ user }: { user: User }) {
           } else if (alreadyDone) {
             statusMessage = `Anda sudah melakukan Absen ${currentType === 'IN' ? 'Masuk' : 'Pulang'} hari ini.`;
             statusColor = "text-emerald-600 bg-emerald-50 border-emerald-100";
-          } else if (currentType === 'IN' && selectedOffice) {
+          } else if (currentType === 'IN' && effectiveOffice) {
             if (currentTime > endIn) {
               statusMessage = "Anda terlambat! Absensi akan tetap dicatat dengan status TERLAMBAT.";
               statusColor = "text-red-600 bg-red-50 border-red-100";
             }
-          } else if (currentType === 'OUT' && selectedOffice) {
+          } else if (currentType === 'OUT' && effectiveOffice) {
              if (currentTime < startOut) {
                statusMessage = "Anda absen mendahului waktu! Absensi akan tetap dicatat dengan status MENDAHULUI.";
                statusColor = "text-orange-600 bg-orange-50 border-orange-100";
@@ -359,7 +399,7 @@ export default function AttendancePanel({ user }: { user: User }) {
                 </div>
               ) : (
                 <button
-                  disabled={!canAbsen || !selectedOffice}
+                  disabled={!canAbsen || !effectiveOffice}
                   onClick={() => { setType(currentType); setStep('photo'); }}
                   className={`w-full flex flex-col items-center justify-center p-8 text-white rounded-3xl shadow-xl transition-all ${
                     currentType === 'OUT' 
@@ -371,7 +411,7 @@ export default function AttendancePanel({ user }: { user: User }) {
                     {currentType === 'OUT' ? <LogOut size={40} /> : <Clock size={40} />}
                   </div>
                   <span className="text-2xl font-bold">{currentType === 'OUT' ? 'Absen Pulang' : 'Absen Masuk'}</span>
-                  {selectedOffice && (
+                  {effectiveOffice && (
                     <span className="text-sm opacity-90 mt-2 font-medium bg-black/10 px-3 py-1 rounded-full">
                       {currentType === 'OUT' ? `${startOut} - ${endOut}` : `${startIn} - ${endIn}`}
                     </span>
@@ -385,7 +425,7 @@ export default function AttendancePanel({ user }: { user: User }) {
       
       {!canAbsen && location && (
         <p className="text-center text-xs text-red-500 bg-red-50 p-3 rounded-lg">
-          Anda berada di luar jangkauan {selectedOffice?.name || 'kantor'}. Silakan mendekat ke lokasi yang dipilih atau hubungi admin jika Anda sedang bertugas di lokasi lain.
+          Anda berada di luar jangkauan {effectiveOffice?.name || 'kantor'}. Silakan mendekat ke lokasi yang dipilih atau hubungi admin jika Anda sedang bertugas di lokasi lain.
         </p>
       )}
     </div>

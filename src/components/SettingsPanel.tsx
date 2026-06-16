@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { format } from 'date-fns';
 import { api } from '../services/api';
 import { User, Office } from '../types';
 import LeafletMap from './Map';
@@ -14,8 +15,16 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
     user_id: 0,
     type: 'SAKIT',
     date: '',
-    notes: ''
+    notes: '',
+    piket_lat: -6.2088,
+    piket_lng: 106.8456,
+    piket_radius: 100,
+    piket_start_in: '06:30',
+    piket_end_in: '08:00',
+    piket_start_out: '16:00',
+    piket_end_out: '18:00'
   });
+  const [piketSchedules, setPiketSchedules] = useState<any[]>([]);
 
   useEffect(() => {
     loadData();
@@ -28,6 +37,17 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
     ]);
     setOffices(officesData);
     setUsers(usersData);
+    await loadPiketSchedules();
+  };
+
+  const loadPiketSchedules = async () => {
+    try {
+      const logs = await api.getAttendance({ include_photo: false });
+      const pikets = logs.filter(l => l.type === 'TUGAS' && l.notes?.startsWith('PIKET_SCHEDULE:::'));
+      setPiketSchedules(pikets);
+    } catch (e) {
+      console.error('Failed to load piket schedules:', e);
+    }
   };
 
   const handleSaveOffice = async () => {
@@ -102,11 +122,55 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
     e.preventDefault();
     if (!specialAttendance.user_id || !specialAttendance.date) return;
     try {
-      await api.submitSpecialAttendance(specialAttendance);
+      if (specialAttendance.type === 'PIKET') {
+        const piketData = {
+          lat: specialAttendance.piket_lat,
+          lng: specialAttendance.piket_lng,
+          radius_meters: specialAttendance.piket_radius,
+          start_in_time: specialAttendance.piket_start_in,
+          end_in_time: specialAttendance.piket_end_in,
+          start_out_time: specialAttendance.piket_start_out,
+          end_out_time: specialAttendance.piket_end_out,
+          notes: specialAttendance.notes
+        };
+        const payload = {
+          user_id: specialAttendance.user_id,
+          type: 'TUGAS',
+          date: specialAttendance.date,
+          notes: `PIKET_SCHEDULE:::${JSON.stringify(piketData)}`
+        };
+        await api.submitSpecialAttendance(payload);
+      } else {
+        await api.submitSpecialAttendance(specialAttendance);
+      }
       alert('Absensi berhasil dicatat');
-      setSpecialAttendance({ user_id: 0, type: 'SAKIT', date: '', notes: '' });
+      setSpecialAttendance({ 
+        user_id: 0, 
+        type: 'SAKIT', 
+        date: '', 
+        notes: '',
+        piket_lat: -6.2088,
+        piket_lng: 106.8456,
+        piket_radius: 100,
+        piket_start_in: '06:30',
+        piket_end_in: '08:00',
+        piket_start_out: '16:00',
+        piket_end_out: '18:00'
+      });
+      await loadPiketSchedules();
     } catch (e) {
       alert('Gagal mencatat absensi');
+    }
+  };
+
+  const handleDeletePiket = async (id: number) => {
+    if (confirm('Apakah Anda yakin ingin menghapus jadwal piket ini?')) {
+      try {
+        await api.deleteAttendance(id);
+        await loadPiketSchedules();
+      } catch (e) {
+        alert('Gagal menghapus jadwal piket');
+      }
     }
   };
 
@@ -547,7 +611,7 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
       
       {/* Special Attendance Form */}
       <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-8">
-        <h3 className="font-bold text-slate-800 mb-4">Input Absensi Khusus (Sakit / Izin / Tugas)</h3>
+        <h3 className="font-bold text-slate-800 mb-4">Input Absensi Khusus (Sakit / Izin / Tugas / Piket)</h3>
         <form onSubmit={handleSubmitSpecial} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
           <div>
             <label className="block text-xs font-medium text-slate-500 mb-1">Pegawai</label>
@@ -584,6 +648,7 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
               <option value="SAKIT">Sakit</option>
               <option value="IZIN">Izin</option>
               <option value="TUGAS">Perintah Tugas</option>
+              <option value="PIKET">Piket (Lokasi & Jam Khusus)</option>
             </select>
           </div>
           <div>
@@ -597,6 +662,123 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
               onChange={e => setSpecialAttendance({...specialAttendance, notes: e.target.value})}
             />
           </div>
+
+          {/* Conditional Piket Subform */}
+          {specialAttendance.type === 'PIKET' && (
+            <div className="lg:col-span-4 bg-emerald-50 rounded-xl p-4 border border-emerald-100 my-2 grid grid-cols-1 md:grid-cols-3 gap-3">
+              <h4 className="col-span-1 md:col-span-3 text-xs font-bold text-emerald-800 uppercase tracking-wider mb-1">
+                Konfigurasi Lokasi & Waktu Piket
+              </h4>
+              
+              {/* Preset selector */}
+              <div className="col-span-1 md:col-span-3">
+                <label className="block text-[10px] font-bold text-emerald-700 uppercase mb-1">Salin Pengaturan Dari Kantor</label>
+                <select 
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-emerald-200 rounded-lg focus:outline-none"
+                  onChange={(e) => {
+                    const selectedOfficeId = parseInt(e.target.value);
+                    if (selectedOfficeId) {
+                      const office = offices.find(o => o.id === selectedOfficeId);
+                      if (office) {
+                        setSpecialAttendance(prev => ({
+                          ...prev,
+                          piket_lat: office.lat,
+                          piket_lng: office.lng,
+                          piket_radius: office.radius_meters || 100,
+                          piket_start_in: office.start_in_time || '06:30',
+                          piket_end_in: office.end_in_time || '08:00',
+                          piket_start_out: office.start_out_time || '16:00',
+                          piket_end_out: office.end_out_time || '18:00'
+                        }));
+                      }
+                    }
+                  }}
+                >
+                  <option value="">Pilih Kantor untuk Menyalin Data...</option>
+                  {offices.map(o => (
+                    <option key={o.id} value={o.id}>{o.name.split(':::')[0]}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-700 uppercase mb-1">Latitude</label>
+                <input 
+                  type="number" 
+                  step="any"
+                  required
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-emerald-200 rounded-lg focus:outline-none"
+                  value={specialAttendance.piket_lat}
+                  onChange={e => setSpecialAttendance({...specialAttendance, piket_lat: parseFloat(e.target.value)})}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-700 uppercase mb-1">Longitude</label>
+                <input 
+                  type="number" 
+                  step="any"
+                  required
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-emerald-200 rounded-lg focus:outline-none"
+                  value={specialAttendance.piket_lng}
+                  onChange={e => setSpecialAttendance({...specialAttendance, piket_lng: parseFloat(e.target.value)})}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-700 uppercase mb-1">Radius Jangkauan (Meter)</label>
+                <input 
+                  type="number" 
+                  required
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-emerald-200 rounded-lg focus:outline-none"
+                  value={specialAttendance.piket_radius}
+                  onChange={e => setSpecialAttendance({...specialAttendance, piket_radius: parseInt(e.target.value)})}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-700 uppercase mb-1">Jam Masuk (Mulai)</label>
+                <input 
+                  type="time" 
+                  required
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-emerald-200 rounded-lg focus:outline-none"
+                  value={specialAttendance.piket_start_in}
+                  onChange={e => setSpecialAttendance({...specialAttendance, piket_start_in: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-700 uppercase mb-1">Jam Masuk (Batas Akhir)</label>
+                <input 
+                  type="time" 
+                  required
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-emerald-200 rounded-lg focus:outline-none"
+                  value={specialAttendance.piket_end_in}
+                  onChange={e => setSpecialAttendance({...specialAttendance, piket_end_in: e.target.value})}
+                />
+              </div>
+              <div>&nbsp;</div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-700 uppercase mb-1">Jam Pulang (Mulai)</label>
+                <input 
+                  type="time" 
+                  required
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-emerald-200 rounded-lg focus:outline-none"
+                  value={specialAttendance.piket_start_out}
+                  onChange={e => setSpecialAttendance({...specialAttendance, piket_start_out: e.target.value})}
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-emerald-700 uppercase mb-1">Jam Pulang (Batas Akhir)</label>
+                <input 
+                  type="time" 
+                  required
+                  className="w-full px-3 py-1.5 text-xs bg-white border border-emerald-200 rounded-lg focus:outline-none"
+                  value={specialAttendance.piket_end_out}
+                  onChange={e => setSpecialAttendance({...specialAttendance, piket_end_out: e.target.value})}
+                />
+              </div>
+            </div>
+          )}
+
           <div className="lg:col-span-4 flex justify-end">
             <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700">
               Simpan Absensi
@@ -604,6 +786,59 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
           </div>
         </form>
       </div>
+
+      {/* List of active Piket schedules */}
+      {piketSchedules.length > 0 && (
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm mb-8">
+          <h3 className="font-bold text-slate-800 mb-4">Daftar Jadwal Piket Aktif</h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm text-left">
+              <thead className="bg-slate-50 text-slate-500 font-medium border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-3">Nama Pegawai</th>
+                  <th className="px-6 py-3">Tanggal Piket</th>
+                  <th className="px-6 py-3">Lokasi Piket (Radius)</th>
+                  <th className="px-6 py-3">Jam Masuk</th>
+                  <th className="px-6 py-3">Jam Pulang</th>
+                  <th className="px-6 py-3">Keterangan</th>
+                  <th className="px-6 py-3 text-center">Aksi</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {piketSchedules.map(schedule => {
+                  let conf: any = {};
+                  try {
+                    conf = JSON.parse(schedule.notes.replace('PIKET_SCHEDULE:::',''));
+                  } catch(e){}
+                  return (
+                    <tr key={schedule.id} className="hover:bg-slate-50">
+                      <td className="px-6 py-4 font-semibold text-slate-800">{schedule.name}</td>
+                      <td className="px-6 py-4 font-mono">{format(new Date(schedule.timestamp), 'dd/MM/yyyy')}</td>
+                      <td className="px-6 py-4 text-xs">
+                        <span className="font-mono bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[10px]">
+                          {conf.lat?.toFixed(5)}, {conf.lng?.toFixed(5)} ({conf.radius_meters}m)
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 font-mono text-emerald-600">{conf.start_in_time} - {conf.end_in_time}</td>
+                      <td className="px-6 py-4 font-mono text-orange-600">{conf.start_out_time} - {conf.end_out_time}</td>
+                      <td className="px-6 py-4 italic text-xs text-slate-500">"{conf.notes || '-'}"</td>
+                      <td className="px-6 py-4 text-center">
+                        <button 
+                          onClick={() => handleDeletePiket(schedule.id)} 
+                          className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Hapus Jadwal Piket"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Desktop Table View */}
       <div className="hidden md:block bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm mb-8">

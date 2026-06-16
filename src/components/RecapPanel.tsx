@@ -195,18 +195,26 @@ export default function RecapPanel({ user }: { user: User }) {
                   </td>
                   <td className="px-6 py-4 print:px-3 print:py-3">
                     <span className={`px-2 py-1 rounded text-xs font-bold print:border print:bg-transparent ${
+                      log.notes?.startsWith('PIKET:') ? 'bg-indigo-100 text-indigo-700 print:text-indigo-700' :
+                      log.type === 'TUGAS' && log.notes?.startsWith('PIKET_SCHEDULE:::') ? 'bg-purple-100 text-purple-700 print:text-purple-700' :
                       log.type === 'IN' ? 'bg-emerald-100 text-emerald-700 print:border-emerald-200 print:text-emerald-700' : 
                       log.type === 'OUT' ? 'bg-orange-100 text-orange-700 print:border-orange-200 print:text-orange-700' :
                       'bg-blue-100 text-blue-700 print:border-blue-200 print:text-blue-700'
                     }`}>
-                      {log.type}
+                      {log.notes?.startsWith('PIKET:') ? `PIKET - ${log.type === 'IN' ? 'MASUK' : 'PULANG'}` :
+                       log.type === 'TUGAS' && log.notes?.startsWith('PIKET_SCHEDULE:::') ? 'JADWAL PIKET' :
+                       log.type}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-slate-500 text-xs print:px-3 print:py-3">
-                    <div className="font-medium text-slate-700">{log.office_name || '-'}</div>
+                    <div className="font-medium text-slate-700">
+                      {log.notes?.startsWith('PIKET_SCHEDULE:::') ? 'Lokasi Khusus Piket' : (log.office_name || '-')}
+                    </div>
                     {log.notes && (
                       <div className="text-[10px] opacity-60 italic mt-1">
-                        "{log.notes}"
+                        "{log.notes.startsWith('PIKET_SCHEDULE:::') 
+                           ? JSON.parse(log.notes.replace('PIKET_SCHEDULE:::', '')).notes || 'Tugas Piket'
+                           : log.notes.replace(/^PIKET:\s*/, '')}"
                       </div>
                     )}
                     {!log.notes && (

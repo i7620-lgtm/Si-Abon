@@ -29,9 +29,10 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
       const now = new Date();
       const qsStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0).toISOString();
       const qsEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59).toISOString();
-      const [todayLogs, allLogs, offices] = await Promise.all([
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0).toISOString();
+      const [todayLogs, monthLogs, offices] = await Promise.all([
         api.getAttendance({ user_id: user.id, start_date: qsStart, end_date: qsEnd }),
-        api.getAttendance({ user_id: user.id }), // Fetch all history for compliance
+        api.getAttendance({ user_id: user.id, start_date: startOfMonth }), // Fetch ONLY this month's history for compliance
         api.getOffices()
       ]);
       
@@ -72,7 +73,7 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
       }
 
       // Calculate compliance (number of late arrivals and early departures)
-      const nonCompliant = allLogs.filter(l => l.is_late).length;
+      const nonCompliant = monthLogs.filter(l => l.is_late).length;
       setLateCount(nonCompliant);
 
       if (isAdmin) {
@@ -81,9 +82,12 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
 
         // Calculate all compliance
         const users = await api.getUsers(user);
+        const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1, 0, 0, 0).toISOString();
+        const allUserLogs = await api.getAttendance({ current_user: user, start_date: startOfMonth });
+        
         const complianceData = [];
         for (const u of users) {
-           const uLogs = await api.getAttendance({ user_id: u.id, current_user: user });
+           const uLogs = allUserLogs.filter(l => l.user_id === u.id);
            const uNonCompliant = uLogs.filter(l => l.is_late).length;
            complianceData.push({ name: u.name, late: uNonCompliant });
         }
@@ -203,7 +207,7 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
           <div className="flex justify-between items-start">
             <div>
               <p className={`text-xs font-bold uppercase tracking-wider ${lateCount === 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                Kepatuhan
+                Kepatuhan (Bulan Ini)
               </p>
               <p className={`text-lg font-bold mt-1 leading-tight ${lateCount === 0 ? 'text-emerald-800' : 'text-red-800'}`}>
                 {lateCount === 0 ? 'Luar Biasa!' : `${lateCount}x Terlambat`}
@@ -214,7 +218,7 @@ export default function DashboardPanel({ user, setActiveTab }: DashboardPanelPro
             </div>
           </div>
           <p className={`text-xs ${lateCount === 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-            {lateCount === 0 ? 'Pertahankan disiplin Anda!' : 'Tingkatkan kedisiplinan Anda!'}
+            {lateCount === 0 ? 'Pertahankan disiplin bulan ini!' : 'Tingkatkan kedisiplinan Anda!'}
           </p>
         </div>
       </div>

@@ -11,29 +11,45 @@ export const api = {
       let schedule = undefined;
       let is_tugas_luar = false;
       let holidays = [];
+      let headmaster_name = (o as any).headmaster_name || '';
+      let headmaster_nip = (o as any).headmaster_nip || '';
       if (parts[1]) {
         try {
           const meta = JSON.parse(parts[1]);
           schedule = meta.schedule;
           is_tugas_luar = meta.is_tugas_luar;
           holidays = meta.holidays || [];
+          if (meta.headmaster_name) headmaster_name = meta.headmaster_name;
+          if (meta.headmaster_nip) headmaster_nip = meta.headmaster_nip;
         } catch (e) {}
       }
-      return { ...o, name, schedule, is_tugas_luar, holidays };
+      return { ...o, name, schedule, is_tugas_luar, holidays, headmaster_name, headmaster_nip };
     });
   },
 
   createOffice: async (office: Omit<Office, 'id'>): Promise<void> => {
-    const { schedule, is_tugas_luar, holidays, name, ...rest } = office as any;
-    const meta = JSON.stringify({ schedule, is_tugas_luar, holidays: holidays || [] });
+    const { schedule, is_tugas_luar, holidays, headmaster_name, headmaster_nip, name, ...rest } = office as any;
+    const meta = JSON.stringify({ 
+      schedule, 
+      is_tugas_luar, 
+      holidays: holidays || [],
+      headmaster_name: headmaster_name || '',
+      headmaster_nip: headmaster_nip || ''
+    });
     const dbName = `${name}:::${meta}`;
     const { error } = await supabase.from('offices').insert([{ ...rest, name: dbName }]);
     if (error) throw error;
   },
 
   updateOffice: async (id: number, office: Omit<Office, 'id'>): Promise<void> => {
-    const { schedule, is_tugas_luar, holidays, name, ...rest } = office as any;
-    const meta = JSON.stringify({ schedule, is_tugas_luar, holidays: holidays || [] });
+    const { schedule, is_tugas_luar, holidays, headmaster_name, headmaster_nip, name, ...rest } = office as any;
+    const meta = JSON.stringify({ 
+      schedule, 
+      is_tugas_luar, 
+      holidays: holidays || [],
+      headmaster_name: headmaster_name || '',
+      headmaster_nip: headmaster_nip || ''
+    });
     const dbName = `${name}:::${meta}`;
     const { error } = await supabase.from('offices').update({ ...rest, name: dbName }).eq('id', id);
     if (error) throw error;
@@ -416,6 +432,7 @@ export const api = {
     let query = supabase
       .from('attendance')
       .select(selectString)
+      .limit(10000)
       .order('timestamp', { ascending: false });
 
     if (filters.user_id) query = query.eq('user_id', filters.user_id);

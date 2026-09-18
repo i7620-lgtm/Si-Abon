@@ -7,15 +7,31 @@
 
 @media print {
   @page {
-    margin: 1cm;
-    size: A4;
+    margin: 0.6cm 0.8cm;
+    size: A4 portrait;
   }
   
-  body {
+  html, body, #root {
+    height: auto !important;
+    min-height: 100% !important;
+    max-height: none !important;
+    overflow: visible !important;
     background: white !important;
     color: black !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
+  }
+
+  /* Unconstrain all containers for proper multi-page printing */
+  * {
+    overflow: visible !important;
+  }
+
+  .h-screen, .h-full, .min-h-screen, main {
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    position: static !important;
   }
 
   thead {
@@ -47,12 +63,13 @@
 
   .print-table {
     width: 100% !important;
-    font-size: 10pt !important;
+    font-size: 8pt !important;
+    line-height: 1.2 !important;
   }
 
   .print-table th, .print-table td {
-    padding: 6px 8px !important;
-    border-bottom: 1px solid #eee !important;
+    padding: 3px 5px !important;
+    border-bottom: 1px solid #cbd5e1 !important;
   }
 }
 

@@ -340,15 +340,6 @@ export default function RecapPanel({ user }: { user: User }) {
     return '';
   }, [selectedUser, logs]);
 
-  // Calculate attendance statistics counts for filtered logs
-  const countHadir = filteredLogs.filter(log => (log.type === 'IN' || log.type === 'OUT') && !log.notes?.startsWith('PIKET:') && log.type !== 'SAKIT' && log.type !== 'IZIN' && log.type !== 'TUGAS' && log.notes !== 'TIDAK ABSENSI MASUK' && log.notes !== 'TIDAK ABSENSI PULANG').length;
-  const countSakit = new Set(filteredLogs.filter(log => log.type === 'SAKIT').map(log => format(new Date(log.timestamp), 'yyyy-MM-dd'))).size;
-  const countCuti = new Set(filteredLogs.filter(log => log.type === 'IZIN' && log.notes?.startsWith('CUTI:')).map(log => format(new Date(log.timestamp), 'yyyy-MM-dd'))).size;
-  const countIzin = new Set(filteredLogs.filter(log => log.type === 'IZIN' && !log.notes?.startsWith('CUTI:')).map(log => format(new Date(log.timestamp), 'yyyy-MM-dd'))).size;
-  const countTugas = new Set(filteredLogs.filter(log => log.type === 'TUGAS').map(log => format(new Date(log.timestamp), 'yyyy-MM-dd'))).size;
-  const countPiket = filteredLogs.filter(log => log.notes?.startsWith('PIKET:')).length;
-  const countTerlambat = filteredLogs.filter(log => log.is_late || log.notes === 'TIDAK ABSENSI PULANG' || log.notes === 'TIDAK ABSENSI MASUK').length;
-
   // Filtered users for dropdown based on filterRole
   const availableUsers = useMemo(() => {
     if (!filterRole) return users;
@@ -924,69 +915,12 @@ export default function RecapPanel({ user }: { user: User }) {
                   {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </span>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Ringkasan Kehadiran (Attendance Summary Card) */}
-        <div id="recap-stats-summary" className="p-4 md:p-6 bg-slate-50/60 border-b border-slate-200 print:bg-white print:p-2 print:border-slate-300">
-          <div className="flex items-center justify-between mb-3 print:mb-1">
-            <h3 className="text-xs md:text-sm font-bold text-slate-800 uppercase tracking-wider print:text-[9px]">
-              Ringkasan Rekapitulasi Kehadiran
-            </h3>
-            <span className="text-[11px] text-slate-500 print:hidden">
-              Statistik absensi yang terfilter
-            </span>
-          </div>
-
-          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-2 md:gap-3 print:grid-cols-7 print:gap-1">
-            <div id="stat-hadir" className="bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-200/80 flex flex-col justify-between print:bg-white print:border-slate-300 print:p-1.5">
-              <span className="text-[11px] font-semibold text-emerald-800 print:text-[8px] print:text-slate-700">Hadir</span>
-              <span className="text-lg md:text-xl font-black text-emerald-700 mt-1 print:text-xs print:font-bold print:text-slate-900 print:mt-0">
-                {countHadir} <span className="text-[10px] font-normal text-emerald-600 print:text-[7px] print:text-slate-500">log</span>
-              </span>
-            </div>
-
-            <div id="stat-sakit" className="bg-rose-50/70 p-2.5 rounded-lg border border-rose-200/80 flex flex-col justify-between print:bg-white print:border-slate-300 print:p-1.5">
-              <span className="text-[11px] font-semibold text-rose-800 print:text-[8px] print:text-slate-700">Sakit</span>
-              <span className="text-lg md:text-xl font-black text-rose-700 mt-1 print:text-xs print:font-bold print:text-slate-900 print:mt-0">
-                {countSakit} <span className="text-[10px] font-normal text-rose-600 print:text-[7px] print:text-slate-500">hari</span>
-              </span>
-            </div>
-
-            <div id="stat-izin" className="bg-amber-50/70 p-2.5 rounded-lg border border-amber-200/80 flex flex-col justify-between print:bg-white print:border-slate-300 print:p-1.5">
-              <span className="text-[11px] font-semibold text-amber-800 print:text-[8px] print:text-slate-700">Izin</span>
-              <span className="text-lg md:text-xl font-black text-amber-700 mt-1 print:text-xs print:font-bold print:text-slate-900 print:mt-0">
-                {countIzin} <span className="text-[10px] font-normal text-amber-600 print:text-[7px] print:text-slate-500">hari</span>
-              </span>
-            </div>
-
-            <div id="stat-cuti" className="bg-teal-50/70 p-2.5 rounded-lg border border-teal-200/80 flex flex-col justify-between print:bg-white print:border-slate-300 print:p-1.5">
-              <span className="text-[11px] font-semibold text-teal-800 print:text-[8px] print:text-slate-700">Cuti</span>
-              <span className="text-lg md:text-xl font-black text-teal-700 mt-1 print:text-xs print:font-bold print:text-slate-900 print:mt-0">
-                {countCuti} <span className="text-[10px] font-normal text-teal-600 print:text-[7px] print:text-slate-500">hari</span>
-              </span>
-            </div>
-
-            <div id="stat-tugas" className="bg-sky-50/70 p-2.5 rounded-lg border border-sky-200/80 flex flex-col justify-between print:bg-white print:border-slate-300 print:p-1.5">
-              <span className="text-[11px] font-semibold text-sky-800 print:text-[8px] print:text-slate-700">Tugas</span>
-              <span className="text-lg md:text-xl font-black text-sky-700 mt-1 print:text-xs print:font-bold print:text-slate-900 print:mt-0">
-                {countTugas} <span className="text-[10px] font-normal text-sky-600 print:text-[7px] print:text-slate-500">log</span>
-              </span>
-            </div>
-
-            <div id="stat-piket" className="bg-indigo-50/70 p-2.5 rounded-lg border border-indigo-200/80 flex flex-col justify-between print:bg-white print:border-slate-300 print:p-1.5">
-              <span className="text-[11px] font-semibold text-indigo-800 print:text-[8px] print:text-slate-700">Piket</span>
-              <span className="text-lg md:text-xl font-black text-indigo-700 mt-1 print:text-xs print:font-bold print:text-slate-900 print:mt-0">
-                {countPiket} <span className="text-[10px] font-normal text-indigo-600 print:text-[7px] print:text-slate-500">log</span>
-              </span>
-            </div>
-
-            <div id="stat-terlambat" className="bg-red-50/70 p-2.5 rounded-lg border border-red-200/80 flex flex-col justify-between print:bg-white print:border-slate-300 print:p-1.5">
-              <span className="text-[11px] font-semibold text-red-800 print:text-[8px] print:text-slate-700">Terlambat/TL</span>
-              <span className="text-lg md:text-xl font-black text-red-700 mt-1 print:text-xs print:font-bold print:text-slate-900 print:mt-0">
-                {countTerlambat} <span className="text-[10px] font-normal text-red-600 print:text-[7px] print:text-slate-500">log</span>
-              </span>
+              <div className="flex justify-between border-b border-slate-100 pb-1 print:pb-0.5">
+                <span className="text-slate-500 font-medium">Total Catatan</span>
+                <span className="font-bold text-slate-900 text-right">
+                  {viewFormat === 'daily' ? `${dailyGroupedLogs.length} Hari Kerja (${filteredLogs.length} Log)` : `${filteredLogs.length} Baris Log`}
+                </span>
+              </div>
             </div>
           </div>
         </div>

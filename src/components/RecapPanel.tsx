@@ -367,7 +367,8 @@ export default function RecapPanel({ user }: { user: User }) {
     if (office && office.headmaster_name) {
       return {
         name: office.headmaster_name,
-        nip: office.headmaster_nip || ''
+        nip: office.headmaster_nip || '',
+        nip_type: office.headmaster_nip_type || 'NIP'
       };
     }
 
@@ -376,12 +377,26 @@ export default function RecapPanel({ user }: { user: User }) {
     if (userHeadmaster) {
       return {
         name: userHeadmaster.name,
-        nip: userHeadmaster.nip || ''
+        nip: userHeadmaster.nip || '',
+        nip_type: userHeadmaster.nip_type || 'NIP'
       };
     }
 
     return null;
   }, [users, offices, selectedUser, user]);
+
+  const selectedEmployeeNipType = useMemo(() => {
+    if (selectedUser) {
+      if (selectedUser.nip_type) return selectedUser.nip_type;
+      const clean = (selectedUser.nip || '').replace(/\s+/g, '');
+      if (clean.length === 21) return 'NIPPPK';
+      return 'NIP';
+    }
+    if (user.nip_type) return user.nip_type;
+    const cleanUserNip = (user.nip || '').replace(/\s+/g, '');
+    if (cleanUserNip.length === 21) return 'NIPPPK';
+    return 'NIP';
+  }, [selectedUser, user]);
 
   // Readable Period Label for UI and Document Header
   const periodLabel = useMemo(() => {
@@ -417,6 +432,7 @@ export default function RecapPanel({ user }: { user: User }) {
       userId: number;
       userName: string;
       userNip?: string;
+      userNipType?: 'NIP' | 'NIPPPK';
       dateStr: string;
       dayName: string;
       inLog?: AttendanceLog;
@@ -434,6 +450,7 @@ export default function RecapPanel({ user }: { user: User }) {
       const logUser = users.find(u => u.id === log.user_id);
       const userName = log.name || logUser?.name || 'Pegawai';
       const userNip = logUser?.nip;
+      const userNipType = logUser?.nip_type || (userNip && userNip.replace(/\s+/g, '').length === 21 ? 'NIPPPK' : 'NIP');
 
       if (!map.has(key)) {
         const [y, m, d] = dateStr.split('-').map(Number);
@@ -443,6 +460,7 @@ export default function RecapPanel({ user }: { user: User }) {
           userId: log.user_id,
           userName,
           userNip,
+          userNipType,
           dateStr,
           dayName,
           piketLogs: [],
@@ -798,7 +816,7 @@ export default function RecapPanel({ user }: { user: User }) {
                 <option value="">Semua Pegawai ({availableUsers.length})</option>
                 {availableUsers.map(u => (
                   <option key={u.id} value={u.id}>
-                    {u.name} {u.nip ? `(${u.nip})` : ''}
+                    {u.name} {u.nip ? `(${u.nip_type || 'NIP'}: ${u.nip})` : ''}
                   </option>
                 ))}
               </select>
@@ -889,7 +907,7 @@ export default function RecapPanel({ user }: { user: User }) {
               </div>
               {selectedUser && (
                 <div className="flex justify-between border-b border-slate-100 pb-1 print:pb-0.5">
-                  <span className="text-slate-500 font-medium">NIP / NIPPPK</span>
+                  <span className="text-slate-500 font-medium">{selectedEmployeeNipType}</span>
                   <span className="font-mono font-bold text-slate-900 text-right">{selectedEmployeeNip || '-'}</span>
                 </div>
               )}
@@ -1043,7 +1061,9 @@ export default function RecapPanel({ user }: { user: User }) {
                         <td className="px-3 py-2 print:px-1.5 print:py-1">
                           <div className="font-bold text-slate-900 leading-tight">{item.userName}</div>
                           {item.userNip && (
-                            <div className="text-[10px] text-slate-400 print:text-slate-600 font-mono">NIP: {item.userNip}</div>
+                            <div className="text-[10px] text-slate-400 print:text-slate-600 font-mono">
+                              {item.userNipType || 'NIP'}: {item.userNip}
+                            </div>
                           )}
                         </td>
                       )}
@@ -1245,7 +1265,7 @@ export default function RecapPanel({ user }: { user: User }) {
                           </div>
                           {displayNip && (
                             <div className="text-[10px] text-slate-400 print:text-slate-600 font-mono">
-                              NIP: {displayNip}
+                              {(logUser?.nip_type || (displayNip.replace(/\s+/g, '').length === 21 ? 'NIPPPK' : 'NIP'))}: {displayNip}
                             </div>
                           )}
                         </td>
@@ -1403,7 +1423,7 @@ export default function RecapPanel({ user }: { user: User }) {
                 {headmaster ? headmaster.name : '__________________________'}
               </p>
               <p className="text-[8pt] text-slate-600 font-mono leading-tight mt-0.5">
-                NIP / NIPPPK: {headmaster?.nip || '__________________________'}
+                {headmaster?.nip_type || 'NIP'}: {headmaster?.nip || '__________________________'}
               </p>
             </div>
           </div>
@@ -1423,9 +1443,9 @@ export default function RecapPanel({ user }: { user: User }) {
               </p>
               <p className="text-[8pt] text-slate-600 font-mono leading-tight mt-0.5">
                 {selectedUser ? (
-                  <>NIP / NIPPPK: {selectedEmployeeNip || '____________________'}</>
+                  <>{selectedEmployeeNipType}: {selectedEmployeeNip || '____________________'}</>
                 ) : (
-                  <>NIP / NIPPPK: {user.nip || '____________________'}</>
+                  <>{user.nip_type || 'NIP'}: {user.nip || '____________________'}</>
                 )}
               </p>
             </div>

@@ -17,9 +17,17 @@ export default function Sidebar({ user, offices, onLogout, activeTab, setActiveT
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [editName, setEditName] = useState(user.name);
   const [editNip, setEditNip] = useState(user.nip || '');
+  const [editNipType, setEditNipType] = useState<'NIP' | 'NIPPPK'>(user.nip_type || 'NIP');
   const [editPhoto, setEditPhoto] = useState(user.photo_url || '');
   const [showCamera, setShowCamera] = useState(false);
   const [attendanceIcon, setAttendanceIcon] = useState<'IN' | 'OUT'>('IN');
+
+  useEffect(() => {
+    setEditName(user.name);
+    setEditNip(user.nip || '');
+    setEditNipType(user.nip_type || 'NIP');
+    setEditPhoto(user.photo_url || '');
+  }, [user]);
 
   useEffect(() => {
     const calculateIcon = () => {
@@ -72,6 +80,7 @@ export default function Sidebar({ user, offices, onLogout, activeTab, setActiveT
       await api.updateUser(user.id, {
         name: editName,
         nip: editNip,
+        nip_type: editNipType,
         photo_url: editPhoto
       });
       onUserUpdate();
@@ -214,13 +223,43 @@ export default function Sidebar({ user, offices, onLogout, activeTab, setActiveT
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">NIP / NIPPPK</label>
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                  Jenis Identitas Kepegawaian
+                </label>
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={() => setEditNipType('NIP')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      editNipType === 'NIP'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-sm'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>NIP (PNS)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditNipType('NIPPPK')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1.5 ${
+                      editNipType === 'NIPPPK'
+                        ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-sm'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <span>NIPPPK (PPPK)</span>
+                  </button>
+                </div>
+
+                <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">
+                  Nomor {editNipType}
+                </label>
                 <input 
                   type="text" 
                   value={editNip}
                   onChange={e => setEditNip(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                  placeholder="Opsional"
+                  className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-sm"
+                  placeholder={editNipType === 'NIP' ? "Contoh: 19830731 200604 2 015" : "Contoh: 19920617 202221 1 010"}
                 />
               </div>
 

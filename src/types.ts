@@ -67,6 +67,8 @@ export interface Office {
   schedule?: Record<number, OfficeSchedule>;
   is_tugas_luar?: boolean;
   holidays?: CustomHoliday[];
+  headmaster_name?: string;
+  headmaster_nip?: string;
 }
 
 export interface AttendanceLog {

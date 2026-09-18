@@ -123,7 +123,7 @@ export default function Sidebar({ user, offices, onLogout, activeTab, setActiveT
           <p className="text-xs text-slate-400 mt-1 ml-10 hidden md:block">Sistem Absensi Online</p>
         </div>
         
-        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 z-50 p-2 flex justify-around md:relative md:border-t-0 md:p-4 md:flex md:flex-col md:flex-1 md:overflow-y-auto md:justify-start gap-1 md:gap-0 overflow-x-auto scrollbar-hide">
+        <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 z-50 p-2 flex justify-around md:relative md:border-t-0 md:p-4 md:flex md:flex-col md:flex-1 md:overflow-y-auto md:justify-start gap-1 md:gap-0 overflow-x-auto scrollbar-hide print:hidden">
           {filteredItems.map(item => {
             const isActive = activeTab === item.id;
             return (

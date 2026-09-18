@@ -13,6 +13,7 @@ export const api = {
       let holidays = [];
       let headmaster_name = (o as any).headmaster_name || '';
       let headmaster_nip = (o as any).headmaster_nip || '';
+      let headmaster_nip_type: 'NIP' | 'NIPPPK' = (o as any).headmaster_nip_type || 'NIP';
       if (parts[1]) {
         try {
           const meta = JSON.parse(parts[1]);
@@ -21,20 +22,22 @@ export const api = {
           holidays = meta.holidays || [];
           if (meta.headmaster_name) headmaster_name = meta.headmaster_name;
           if (meta.headmaster_nip) headmaster_nip = meta.headmaster_nip;
+          if (meta.headmaster_nip_type) headmaster_nip_type = meta.headmaster_nip_type;
         } catch (e) {}
       }
-      return { ...o, name, schedule, is_tugas_luar, holidays, headmaster_name, headmaster_nip };
+      return { ...o, name, schedule, is_tugas_luar, holidays, headmaster_name, headmaster_nip, headmaster_nip_type };
     });
   },
 
   createOffice: async (office: Omit<Office, 'id'>): Promise<void> => {
-    const { schedule, is_tugas_luar, holidays, headmaster_name, headmaster_nip, name, ...rest } = office as any;
+    const { schedule, is_tugas_luar, holidays, headmaster_name, headmaster_nip, headmaster_nip_type, name, ...rest } = office as any;
     const meta = JSON.stringify({ 
       schedule, 
       is_tugas_luar, 
       holidays: holidays || [],
       headmaster_name: headmaster_name || '',
-      headmaster_nip: headmaster_nip || ''
+      headmaster_nip: headmaster_nip || '',
+      headmaster_nip_type: headmaster_nip_type || 'NIP'
     });
     const dbName = `${name}:::${meta}`;
     const { error } = await supabase.from('offices').insert([{ ...rest, name: dbName }]);
@@ -42,13 +45,14 @@ export const api = {
   },
 
   updateOffice: async (id: number, office: Omit<Office, 'id'>): Promise<void> => {
-    const { schedule, is_tugas_luar, holidays, headmaster_name, headmaster_nip, name, ...rest } = office as any;
+    const { schedule, is_tugas_luar, holidays, headmaster_name, headmaster_nip, headmaster_nip_type, name, ...rest } = office as any;
     const meta = JSON.stringify({ 
       schedule, 
       is_tugas_luar, 
       holidays: holidays || [],
       headmaster_name: headmaster_name || '',
-      headmaster_nip: headmaster_nip || ''
+      headmaster_nip: headmaster_nip || '',
+      headmaster_nip_type: headmaster_nip_type || 'NIP'
     });
     const dbName = `${name}:::${meta}`;
     const { error } = await supabase.from('offices').update({ ...rest, name: dbName }).eq('id', id);
@@ -71,17 +75,31 @@ export const api = {
     let users = (data || []).map((u: any) => {
       let assigned_offices = [];
       let department = u.department || '';
+      let nip_type: 'NIP' | 'NIPPPK' = 'NIP';
       if (department.includes(':::')) {
         const parts = department.split(':::');
         department = parts[0];
         try {
-          assigned_offices = JSON.parse(parts[1]);
+          const parsed = JSON.parse(parts[1]);
+          if (Array.isArray(parsed)) {
+            assigned_offices = parsed;
+          } else if (parsed && typeof parsed === 'object') {
+            assigned_offices = parsed.assigned_offices || [];
+            if (parsed.nip_type) nip_type = parsed.nip_type;
+          }
         } catch (e) {}
+      }
+      if (!department.includes('nip_type') && u.nip) {
+        const cleanNip = String(u.nip).replace(/\s+/g, '');
+        if (cleanNip.length === 21) {
+          nip_type = 'NIPPPK';
+        }
       }
       return { 
         ...u, 
         department, 
         assigned_offices, 
+        nip_type,
         office_name: u.offices?.name?.split(':::')[0] 
       };
     });
@@ -166,18 +184,32 @@ export const api = {
     
     let assigned_offices = [];
     let department = data.department || '';
+    let nip_type: 'NIP' | 'NIPPPK' = 'NIP';
     if (department.includes(':::')) {
       const parts = department.split(':::');
       department = parts[0];
       try {
-        assigned_offices = JSON.parse(parts[1]);
+        const parsed = JSON.parse(parts[1]);
+        if (Array.isArray(parsed)) {
+          assigned_offices = parsed;
+        } else if (parsed && typeof parsed === 'object') {
+          assigned_offices = parsed.assigned_offices || [];
+          if (parsed.nip_type) nip_type = parsed.nip_type;
+        }
       } catch (e) {}
+    }
+    if (!department.includes('nip_type') && data.nip) {
+      const cleanNip = String(data.nip).replace(/\s+/g, '');
+      if (cleanNip.length === 21) {
+        nip_type = 'NIPPPK';
+      }
     }
 
     return {
       ...data,
       department,
       assigned_offices,
+      nip_type,
       office_name: data.offices?.name?.split(':::')[0]
     };
   },
@@ -199,23 +231,35 @@ export const api = {
 
   updateUser: async (id: number, data: Partial<User>): Promise<void> => {
     const updateData: any = { ...data };
-    if (data.assigned_offices !== undefined || data.department !== undefined) {
+    delete updateData.nip_type;
+
+    if (data.assigned_offices !== undefined || data.department !== undefined || data.nip_type !== undefined) {
       // Need current data to preserve one if other is missing
       const { data: current } = await supabase.from('users').select('department').eq('id', id).single();
       let currentDept = '';
       let currentAssigned = [];
+      let currentNipType: 'NIP' | 'NIPPPK' = 'NIP';
       if (current?.department?.includes(':::')) {
         const parts = current.department.split(':::');
         currentDept = parts[0];
-        try { currentAssigned = JSON.parse(parts[1]); } catch (e) {}
+        try {
+          const parsed = JSON.parse(parts[1]);
+          if (Array.isArray(parsed)) {
+            currentAssigned = parsed;
+          } else if (parsed && typeof parsed === 'object') {
+            currentAssigned = parsed.assigned_offices || [];
+            if (parsed.nip_type) currentNipType = parsed.nip_type;
+          }
+        } catch (e) {}
       } else {
         currentDept = current?.department || '';
       }
 
       const dept = data.department !== undefined ? data.department : currentDept;
       const assigned = data.assigned_offices !== undefined ? data.assigned_offices : currentAssigned;
+      const nipType = data.nip_type !== undefined ? data.nip_type : currentNipType;
       
-      updateData.department = `${dept}:::${JSON.stringify(assigned)}`;
+      updateData.department = `${dept}:::${JSON.stringify({ assigned_offices: assigned, nip_type: nipType })}`;
       delete updateData.assigned_offices;
     }
     const { error } = await supabase.from('users').update(updateData).eq('id', id);

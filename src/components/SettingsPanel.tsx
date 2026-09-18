@@ -178,7 +178,8 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
     setEditingOffice({
       ...office,
       headmaster_name: office.headmaster_name || '',
-      headmaster_nip: office.headmaster_nip || ''
+      headmaster_nip: office.headmaster_nip || '',
+      headmaster_nip_type: office.headmaster_nip_type || 'NIP'
     });
     setIsCreating(false);
   };
@@ -194,7 +195,8 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
       start_out_time: '16:00',
       end_out_time: '18:00',
       headmaster_name: '',
-      headmaster_nip: ''
+      headmaster_nip: '',
+      headmaster_nip_type: 'NIP'
     });
     setIsCreating(true);
   };
@@ -249,7 +251,7 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
 
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
-                Kepala Sekolah / Atasan Langsung
+                Nama Kepala Sekolah / Atasan Langsung
               </label>
               <input 
                 type="text" 
@@ -261,15 +263,43 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
-                NIP / NIPPPK
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1.5">
+                Jenis Identitas Atasan Langsung
+              </label>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingOffice({...editingOffice, headmaster_nip_type: 'NIP'})}
+                  className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+                    (editingOffice.headmaster_nip_type || 'NIP') === 'NIP'
+                      ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-sm'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  NIP (PNS)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditingOffice({...editingOffice, headmaster_nip_type: 'NIPPPK'})}
+                  className={`py-2 px-3 rounded-lg text-xs font-bold border transition-all ${
+                    editingOffice.headmaster_nip_type === 'NIPPPK'
+                      ? 'bg-emerald-50 border-emerald-500 text-emerald-700 shadow-sm'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  NIPPPK (PPPK)
+                </button>
+              </div>
+
+              <label className="block text-xs font-medium text-slate-500 uppercase tracking-wider mb-1">
+                Nomor {editingOffice.headmaster_nip_type || 'NIP'}
               </label>
               <input 
                 type="text" 
                 value={editingOffice.headmaster_nip || ''}
                 onChange={e => setEditingOffice({...editingOffice, headmaster_nip: e.target.value})}
-                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
-                placeholder="Contoh: 19780512 200501 1 008"
+                className="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono text-sm"
+                placeholder={editingOffice.headmaster_nip_type === 'NIPPPK' ? "Contoh: 19920617 202221 1 010" : "Contoh: 19780512 200501 1 008"}
               />
             </div>
             
@@ -598,7 +628,7 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
                   {office.headmaster_name || <span className="text-slate-400 font-normal italic">Belum diisi (Klik edit untuk mengatur)</span>}
                 </p>
                 <p className="text-xs text-slate-500 font-mono mt-0.5">
-                  NIP / NIPPPK: {office.headmaster_nip || '-'}
+                  {office.headmaster_nip_type || 'NIP'}: {office.headmaster_nip || '-'}
                 </p>
               </div>
               
@@ -902,8 +932,20 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
               <tr key={u.id} className="hover:bg-slate-50/50">
                 <td className="px-6 py-4">
                   <div className="font-medium text-slate-900">{u.name}</div>
-                  <div className="text-xs text-slate-500 font-mono mt-1 flex items-center gap-1.5">
-                    <span className="text-[11px] text-slate-400">NIP/NIPPPK:</span>
+                  <div className="text-xs text-slate-500 font-mono mt-1.5 flex items-center gap-1.5">
+                    <select
+                      value={u.nip_type || 'NIP'}
+                      onChange={async (e) => {
+                        const newType = e.target.value as 'NIP' | 'NIPPPK';
+                        await api.updateUser(u.id, { nip_type: newType });
+                        loadData();
+                        if (onUserUpdate) onUserUpdate();
+                      }}
+                      className="px-1.5 py-0.5 text-[11px] font-bold bg-slate-50 border border-slate-200 rounded text-slate-700 hover:border-slate-400 focus:outline-none cursor-pointer"
+                    >
+                      <option value="NIP">NIP</option>
+                      <option value="NIPPPK">NIPPPK</option>
+                    </select>
                     <input
                       type="text"
                       defaultValue={u.nip || ''}
@@ -916,7 +958,7 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
                           });
                         }
                       }}
-                      placeholder="Klik untuk isi NIP..."
+                      placeholder={`Isi nomor ${u.nip_type || 'NIP'}...`}
                       className="px-2 py-0.5 text-xs bg-slate-50 border border-slate-200 rounded hover:border-slate-400 focus:bg-white focus:border-emerald-500 focus:outline-none w-48 font-mono"
                     />
                   </div>
@@ -1000,7 +1042,19 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
                 <h3 className="font-bold text-slate-800">{u.name}</h3>
                 <div className="mt-1 flex flex-col gap-1.5">
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-slate-400 font-medium">NIP:</span>
+                    <select
+                      value={u.nip_type || 'NIP'}
+                      onChange={async (e) => {
+                        const newType = e.target.value as 'NIP' | 'NIPPPK';
+                        await api.updateUser(u.id, { nip_type: newType });
+                        loadData();
+                        if (onUserUpdate) onUserUpdate();
+                      }}
+                      className="px-1.5 py-0.5 text-[10px] font-bold bg-slate-50 border border-slate-200 rounded text-slate-700 hover:border-slate-400 focus:outline-none cursor-pointer"
+                    >
+                      <option value="NIP">NIP</option>
+                      <option value="NIPPPK">NIPPPK</option>
+                    </select>
                     <input
                       type="text"
                       defaultValue={u.nip || ''}
@@ -1013,7 +1067,7 @@ export default function SettingsPanel({ user, onUserUpdate }: { user: User, onUs
                           });
                         }
                       }}
-                      placeholder="Isi NIP/NIPPPK..."
+                      placeholder={`Isi nomor ${u.nip_type || 'NIP'}...`}
                       className="px-2 py-0.5 text-xs bg-slate-50 border border-slate-200 rounded hover:border-slate-400 focus:bg-white focus:border-emerald-500 focus:outline-none w-44 font-mono"
                     />
                   </div>

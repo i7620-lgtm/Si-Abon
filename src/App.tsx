@@ -388,7 +388,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-screen w-screen bg-slate-50 overflow-hidden font-sans">
+    <div className="flex flex-col md:flex-row h-screen w-screen bg-slate-50 overflow-hidden font-sans print:h-auto print:w-auto print:overflow-visible print:bg-white">
       <Sidebar 
         user={user} 
         offices={offices}
@@ -401,7 +401,7 @@ export default function App() {
         onUserUpdate={loadUsers}
       />
       
-      <main className="flex-1 h-full overflow-hidden relative pb-[72px] md:pb-0">
+      <main className="flex-1 h-full overflow-hidden relative pb-[72px] md:pb-0 print:h-auto print:w-full print:overflow-visible print:p-0 print:m-0 print:static">
         {activeTab === 'dashboard' && <DashboardPanel user={user} setActiveTab={setActiveTab} />}
         {activeTab === 'attendance' && <AttendancePanel user={user} />}
         {activeTab === 'correction' && <CorrectionPanel user={user} />}
@@ -413,4 +413,3 @@ export default function App() {
     </div>
   );
 }
- 

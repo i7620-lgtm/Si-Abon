@@ -6,6 +6,7 @@ export interface User {
   office_id?: number;
   office_name?: string;
   nip?: string;
+  nip_type?: 'NIP' | 'NIPPPK';
   photo_url?: string;
   leave_quota?: number;
   email?: string;
@@ -69,6 +70,7 @@ export interface Office {
   holidays?: CustomHoliday[];
   headmaster_name?: string;
   headmaster_nip?: string;
+  headmaster_nip_type?: 'NIP' | 'NIPPPK';
 }
 
 export interface AttendanceLog {

@@ -414,18 +414,31 @@ export default function RecapPanel({ user }: { user: User }) {
 
       const item = map.get(key)!;
 
+      if (log.office_name) {
+        item.officeName = log.office_name;
+      }
+
+      // Track piket logs
+      if (log.notes?.startsWith('PIKET:')) {
+        item.piketLogs.push(log);
+      }
+
+      // Track attendance period (IN / OUT / SPECIAL)
       if (log.type === 'SAKIT' || log.type === 'IZIN' || (log.type === 'TUGAS' && !log.notes?.startsWith('PIKET'))) {
         item.specialLog = log;
-      } else if (log.notes?.startsWith('PIKET:')) {
-        item.piketLogs.push(log);
       } else if (log.type === 'IN' || (log as any)._period === 'IN') {
         item.inLog = log;
       } else if (log.type === 'OUT' || (log as any)._period === 'OUT') {
         item.outLog = log;
       }
 
+      // Filter out internal notes from overriding location
       if (log.notes && !item.notes.includes(log.notes)) {
-        if (!log.notes.startsWith('PIKET_SCHEDULE:::') && log.notes !== 'TIDAK ABSENSI MASUK' && log.notes !== 'TIDAK ABSENSI PULANG') {
+        const isLupaAbsen = log.notes === 'Koreksi Absensi (Lupa Absen)' || log.notes.toLowerCase().includes('lupa absen') || log.notes.toLowerCase().includes('koreksi absensi');
+        const isPiketNote = log.notes.startsWith('PIKET:') || log.notes.startsWith('PIKET_SCHEDULE:::');
+        const isMissedAttendance = log.notes === 'TIDAK ABSENSI MASUK' || log.notes === 'TIDAK ABSENSI PULANG';
+
+        if (!isLupaAbsen && !isPiketNote && !isMissedAttendance) {
           item.notes.push(log.notes);
         }
       }
@@ -1011,9 +1024,13 @@ export default function RecapPanel({ user }: { user: User }) {
                               {item.inLog.notes === 'TIDAK ABSENSI MASUK' ? (
                                 <span className="text-red-600 font-semibold">Tidak Hadir</span>
                               ) : item.inLog.is_late ? (
-                                <span className="text-red-600 font-semibold">Terlambat</span>
+                                <span className="text-red-600 font-semibold">
+                                  {item.inLog.notes?.startsWith('PIKET:') ? 'Terlambat (Piket)' : 'Terlambat'}
+                                </span>
                               ) : (
-                                <span className="text-emerald-700 font-semibold">Tepat Waktu</span>
+                                <span className="text-emerald-700 font-semibold">
+                                  {item.inLog.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
+                                </span>
                               )}
                             </div>
                           </div>
@@ -1037,9 +1054,13 @@ export default function RecapPanel({ user }: { user: User }) {
                               {item.outLog.notes === 'TIDAK ABSENSI PULANG' ? (
                                 <span className="text-red-600 font-semibold">Tidak Hadir</span>
                               ) : item.outLog.is_late ? (
-                                <span className="text-orange-600 font-semibold">Mendahului</span>
+                                <span className="text-orange-600 font-semibold">
+                                  {item.outLog.notes?.startsWith('PIKET:') ? 'Mendahului (Piket)' : 'Mendahului'}
+                                </span>
                               ) : (
-                                <span className="text-emerald-700 font-semibold">Tepat Waktu</span>
+                                <span className="text-emerald-700 font-semibold">
+                                  {item.outLog.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
+                                </span>
                               )}
                             </div>
                           </div>
@@ -1048,23 +1069,26 @@ export default function RecapPanel({ user }: { user: User }) {
                         )}
                       </td>
 
-                      {/* Keterangan / Lokasi */}
+                      {/* Keterangan / Lokasi (Selalu Menampilkan Lokasi Fisik/Kantor) */}
                       <td className="px-3 py-2 print:px-1.5 print:py-1 text-xs print:text-[7.5pt]">
-                        {item.notes.length > 0 ? (
-                          <div className="space-y-0.5">
+                        <div className="font-semibold text-slate-800 print:text-slate-900">
+                          {item.officeName || officeName}
+                        </div>
+                        {item.piketLogs.length > 0 && (
+                          <div className="mt-0.5">
+                            <span className="inline-block px-1.5 py-0 bg-indigo-50 text-indigo-700 rounded text-[9px] font-semibold border border-indigo-200 print:border-slate-300">
+                              Piket
+                            </span>
+                          </div>
+                        )}
+                        {item.notes.length > 0 && (
+                          <div className="space-y-0.5 mt-0.5">
                             {item.notes.map((note, nIdx) => (
-                              <div key={nIdx} className="text-slate-700 font-medium italic">
+                              <div key={nIdx} className="text-slate-500 italic text-[10px] print:text-[7pt]">
                                 "{note.startsWith('CUTI:') ? note.replace('CUTI: ', 'Cuti: ') : note}"
                               </div>
                             ))}
                           </div>
-                        ) : (
-                          <span className="text-slate-500">{item.officeName}</span>
-                        )}
-                        {item.piketLogs.length > 0 && (
-                          <span className="inline-block mt-0.5 px-1.5 py-0 bg-indigo-50 text-indigo-700 rounded text-[9px] font-semibold border border-indigo-200">
-                            Piket ({item.piketLogs.length})
-                          </span>
                         )}
                       </td>
 
@@ -1088,15 +1112,15 @@ export default function RecapPanel({ user }: { user: User }) {
                           </span>
                         ) : item.inLog && item.outLog ? (
                           <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs font-bold border border-emerald-200 print:text-[7.5pt] print:border-slate-400">
-                            Hadir Lengkap
+                            {item.piketLogs.length > 0 ? 'Piket Lengkap' : 'Hadir Lengkap'}
                           </span>
                         ) : item.inLog ? (
                           <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs font-bold border border-emerald-200 print:text-[7.5pt] print:border-slate-400">
-                            Hadir Masuk
+                            {item.piketLogs.length > 0 ? 'Piket Masuk' : 'Hadir Masuk'}
                           </span>
                         ) : item.outLog ? (
                           <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs font-bold border border-emerald-200 print:text-[7.5pt] print:border-slate-400">
-                            Hadir Pulang
+                            {item.piketLogs.length > 0 ? 'Piket Pulang' : 'Hadir Pulang'}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 bg-slate-50 text-slate-700 rounded text-xs font-bold border border-slate-200 print:text-[7.5pt] print:border-slate-400">
@@ -1212,11 +1236,23 @@ export default function RecapPanel({ user }: { user: User }) {
                         <div className="font-semibold text-slate-800 print:text-slate-900">
                           {log.notes?.startsWith('PIKET_SCHEDULE:::') ? 'Lokasi Khusus Piket' : (log.office_name || officeName)}
                         </div>
-                        {log.notes && (
+                        {log.notes?.startsWith('PIKET:') && (
+                          <div className="mt-0.5">
+                            <span className="inline-block px-1.5 py-0 bg-indigo-50 text-indigo-700 rounded text-[9px] font-semibold border border-indigo-200 print:border-slate-300">
+                              Piket
+                            </span>
+                          </div>
+                        )}
+                        {log.notes && 
+                         !log.notes.startsWith('PIKET:') && 
+                         !log.notes.startsWith('PIKET_SCHEDULE:::') && 
+                         log.notes !== 'Koreksi Absensi (Lupa Absen)' && 
+                         !log.notes.toLowerCase().includes('lupa absen') && 
+                         !log.notes.toLowerCase().includes('koreksi absensi') && 
+                         log.notes !== 'TIDAK ABSENSI MASUK' && 
+                         log.notes !== 'TIDAK ABSENSI PULANG' && (
                           <div className="text-[10px] text-slate-500 italic mt-0.5 print:text-slate-600">
-                            "{log.notes.startsWith('PIKET_SCHEDULE:::') 
-                               ? JSON.parse(log.notes.replace('PIKET_SCHEDULE:::', '')).notes || 'Tugas Piket'
-                               : log.notes.replace(/^PIKET:\s*/, '')}"
+                            "{log.notes.startsWith('CUTI:') ? log.notes.replace('CUTI: ', 'Cuti: ') : log.notes}"
                           </div>
                         )}
                         {!log.notes && log.lat !== 0 && log.lng !== 0 && (

@@ -1069,26 +1069,41 @@ export default function RecapPanel({ user }: { user: User }) {
                         )}
                       </td>
 
-                      {/* Keterangan / Lokasi (Selalu Menampilkan Lokasi Fisik/Kantor) */}
+                      {/* Keterangan / Lokasi */}
                       <td className="px-3 py-2 print:px-1.5 print:py-1 text-xs print:text-[7.5pt]">
-                        <div className="font-semibold text-slate-800 print:text-slate-900">
-                          {item.officeName || officeName}
-                        </div>
-                        {item.piketLogs.length > 0 && (
-                          <div className="mt-0.5">
-                            <span className="inline-block px-1.5 py-0 bg-indigo-50 text-indigo-700 rounded text-[9px] font-semibold border border-indigo-200 print:border-slate-300">
-                              Piket
-                            </span>
+                        {isCuti ? (
+                          <div className="font-semibold text-teal-800 print:text-slate-900">
+                            {(() => {
+                              const raw = item.specialLog?.notes || item.notes.find(n => n.toUpperCase().startsWith('CUTI:')) || '';
+                              if (raw.toUpperCase().startsWith('CUTI:')) {
+                                const reason = raw.replace(/^CUTI:\s*/i, '').trim();
+                                return reason ? `Cuti: ${reason}` : 'Cuti';
+                              }
+                              return raw ? `Cuti: ${raw}` : 'Cuti';
+                            })()}
                           </div>
-                        )}
-                        {item.notes.length > 0 && (
-                          <div className="space-y-0.5 mt-0.5">
-                            {item.notes.map((note, nIdx) => (
-                              <div key={nIdx} className="text-slate-500 italic text-[10px] print:text-[7pt]">
-                                "{note.startsWith('CUTI:') ? note.replace('CUTI: ', 'Cuti: ') : note}"
+                        ) : (
+                          <>
+                            <div className="font-semibold text-slate-800 print:text-slate-900">
+                              {item.officeName || officeName}
+                            </div>
+                            {item.piketLogs.length > 0 && (
+                              <div className="mt-0.5">
+                                <span className="inline-block px-1.5 py-0 bg-indigo-50 text-indigo-700 rounded text-[9px] font-semibold border border-indigo-200 print:border-slate-300">
+                                  Piket
+                                </span>
                               </div>
-                            ))}
-                          </div>
+                            )}
+                            {item.notes.length > 0 && (
+                              <div className="space-y-0.5 mt-0.5">
+                                {item.notes.map((note, nIdx) => (
+                                  <div key={nIdx} className="text-slate-500 italic text-[10px] print:text-[7pt]">
+                                    "{note}"
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </>
                         )}
                       </td>
 
@@ -1233,27 +1248,35 @@ export default function RecapPanel({ user }: { user: User }) {
 
                       {/* Lokasi / Kantor */}
                       <td className="px-3 py-1.5 text-xs print:px-1.5 print:py-1">
-                        <div className="font-semibold text-slate-800 print:text-slate-900">
-                          {log.notes?.startsWith('PIKET_SCHEDULE:::') ? 'Lokasi Khusus Piket' : (log.office_name || officeName)}
-                        </div>
-                        {log.notes?.startsWith('PIKET:') && (
-                          <div className="mt-0.5">
-                            <span className="inline-block px-1.5 py-0 bg-indigo-50 text-indigo-700 rounded text-[9px] font-semibold border border-indigo-200 print:border-slate-300">
-                              Piket
-                            </span>
+                        {log.notes?.toUpperCase().startsWith('CUTI:') ? (
+                          <div className="font-semibold text-teal-800 print:text-slate-900">
+                            {log.notes.replace(/^CUTI:\s*/i, 'Cuti: ')}
                           </div>
-                        )}
-                        {log.notes && 
-                         !log.notes.startsWith('PIKET:') && 
-                         !log.notes.startsWith('PIKET_SCHEDULE:::') && 
-                         log.notes !== 'Koreksi Absensi (Lupa Absen)' && 
-                         !log.notes.toLowerCase().includes('lupa absen') && 
-                         !log.notes.toLowerCase().includes('koreksi absensi') && 
-                         log.notes !== 'TIDAK ABSENSI MASUK' && 
-                         log.notes !== 'TIDAK ABSENSI PULANG' && (
-                          <div className="text-[10px] text-slate-500 italic mt-0.5 print:text-slate-600">
-                            "{log.notes.startsWith('CUTI:') ? log.notes.replace('CUTI: ', 'Cuti: ') : log.notes}"
-                          </div>
+                        ) : (
+                          <>
+                            <div className="font-semibold text-slate-800 print:text-slate-900">
+                              {log.notes?.startsWith('PIKET_SCHEDULE:::') ? 'Lokasi Khusus Piket' : (log.office_name || officeName)}
+                            </div>
+                            {log.notes?.startsWith('PIKET:') && (
+                              <div className="mt-0.5">
+                                <span className="inline-block px-1.5 py-0 bg-indigo-50 text-indigo-700 rounded text-[9px] font-semibold border border-indigo-200 print:border-slate-300">
+                                  Piket
+                                </span>
+                              </div>
+                            )}
+                            {log.notes && 
+                             !log.notes.startsWith('PIKET:') && 
+                             !log.notes.startsWith('PIKET_SCHEDULE:::') && 
+                             log.notes !== 'Koreksi Absensi (Lupa Absen)' && 
+                             !log.notes.toLowerCase().includes('lupa absen') && 
+                             !log.notes.toLowerCase().includes('koreksi absensi') && 
+                             log.notes !== 'TIDAK ABSENSI MASUK' && 
+                             log.notes !== 'TIDAK ABSENSI PULANG' && (
+                              <div className="text-[10px] text-slate-500 italic mt-0.5 print:text-slate-600">
+                                "{log.notes}"
+                              </div>
+                            )}
+                          </>
                         )}
                         {!log.notes && log.lat !== 0 && log.lng !== 0 && (
                           <div className="text-[10px] text-slate-400 print:hidden font-mono">
@@ -1328,33 +1351,41 @@ export default function RecapPanel({ user }: { user: User }) {
 
         {/* TANDA TANGAN RESMI KEDINASAN / SEKOLAH (Print Footer) */}
         <div className="hidden print:grid grid-cols-2 gap-8 mt-6 px-8 pb-4 break-inside-avoid text-center">
-          {/* Pihak 1: Pegawai atau Petugas Rekap */}
-          <div>
-            <p className="text-[9pt] text-slate-600 mb-12">
-              {selectedUser ? 'Pegawai yang bersangkutan,' : 'Dibuat & Diverifikasi oleh,'}
-            </p>
-            <div className="border-b border-slate-900 w-44 mx-auto mb-1"></div>
-            <p className="text-[10pt] font-bold text-slate-900">
-              {selectedUser ? selectedUser.name : user.name}
-            </p>
-            <p className="text-[8pt] text-slate-600 font-mono">
-              NIP: {selectedUser?.nip || user.nip || '____________________'}
-            </p>
+          {/* Pihak 1 (Kiri): Atasan Langsung / Kepala Sekolah */}
+          <div className="flex flex-col items-center">
+            <div className="h-10 flex flex-col justify-end items-center">
+              <p className="text-[9pt] text-slate-700 leading-tight">Mengetahui,</p>
+              <p className="text-[9pt] text-slate-700 font-medium leading-tight">Kepala Sekolah / Atasan Langsung</p>
+            </div>
+            <div className="h-14"></div>
+            <div className="w-full flex flex-col items-center">
+              <div className="border-b border-slate-900 w-52 mb-1"></div>
+              <p className="text-[10pt] font-bold text-slate-900 leading-tight">
+                {headmaster ? headmaster.name : '__________________________'}
+              </p>
+              <p className="text-[8pt] text-slate-600 font-mono leading-tight mt-0.5">
+                NIP: {headmaster?.nip || '__________________________'}
+              </p>
+            </div>
           </div>
 
-          {/* Pihak 2: Atasan Langsung / Kepala Sekolah */}
-          <div>
-            <p className="text-[9pt] text-slate-600 mb-12">
-              Mengetahui,<br />
-              Kepala Sekolah / Atasan Langsung
-            </p>
-            <div className="border-b border-slate-900 w-44 mx-auto mb-1"></div>
-            <p className="text-[10pt] font-bold text-slate-900">
-              {headmaster ? headmaster.name : '__________________________'}
-            </p>
-            <p className="text-[8pt] text-slate-600 font-mono">
-              NIP: {headmaster?.nip || '__________________________'}
-            </p>
+          {/* Pihak 2 (Kanan): Pegawai yang bersangkutan */}
+          <div className="flex flex-col items-center">
+            <div className="h-10 flex flex-col justify-end items-center">
+              <p className="text-[9pt] text-slate-700 font-medium leading-tight">
+                {selectedUser ? 'Pegawai yang bersangkutan,' : 'Dibuat & Diverifikasi oleh,'}
+              </p>
+            </div>
+            <div className="h-14"></div>
+            <div className="w-full flex flex-col items-center">
+              <div className="border-b border-slate-900 w-52 mb-1"></div>
+              <p className="text-[10pt] font-bold text-slate-900 leading-tight">
+                {selectedUser ? selectedUser.name : user.name}
+              </p>
+              <p className="text-[8pt] text-slate-600 font-mono leading-tight mt-0.5">
+                NIP: {selectedUser?.nip || user.nip || '____________________'}
+              </p>
+            </div>
           </div>
         </div>
       </div>

@@ -324,6 +324,22 @@ export default function RecapPanel({ user }: { user: User }) {
     return users.find(u => u.id === parseInt(filterUser));
   }, [users, filterUser]);
 
+  // NIP / NIPPPK murni milik pegawai yang dipilih, dilarang keras fallback ke NIP admin/super admin
+  const selectedEmployeeNip = useMemo(() => {
+    if (!selectedUser) return '';
+    if (selectedUser.nip && typeof selectedUser.nip === 'string' && selectedUser.nip.trim() !== '') {
+      return selectedUser.nip.trim();
+    }
+    const logWithNip = logs.find(l => l.user_id === selectedUser.id && ((l as any).user_nip || (l as any).users?.nip));
+    if (logWithNip) {
+      const found = (logWithNip as any).user_nip || (logWithNip as any).users?.nip;
+      if (found && typeof found === 'string' && found.trim() !== '') {
+        return found.trim();
+      }
+    }
+    return '';
+  }, [selectedUser, logs]);
+
   // Calculate attendance statistics counts for filtered logs
   const countHadir = filteredLogs.filter(log => (log.type === 'IN' || log.type === 'OUT') && !log.notes?.startsWith('PIKET:') && log.type !== 'SAKIT' && log.type !== 'IZIN' && log.type !== 'TUGAS' && log.notes !== 'TIDAK ABSENSI MASUK' && log.notes !== 'TIDAK ABSENSI PULANG').length;
   const countSakit = new Set(filteredLogs.filter(log => log.type === 'SAKIT').map(log => format(new Date(log.timestamp), 'yyyy-MM-dd'))).size;
@@ -341,8 +357,31 @@ export default function RecapPanel({ user }: { user: User }) {
 
   // Headmaster lookup for signature
   const headmaster = useMemo(() => {
-    return users.find(u => u.role === 'headmaster');
-  }, [users]);
+    // 1. Cek dari pengaturan kantor yang dipilih / kantor user
+    const targetOfficeId = selectedUser?.office_id || user.office_id;
+    const targetOfficeName = selectedUser?.office_name || user.office_name;
+    const office = offices.find(o => o.id === targetOfficeId) || 
+                   offices.find(o => o.name === targetOfficeName) || 
+                   (offices.length > 0 ? offices[0] : null);
+
+    if (office && office.headmaster_name) {
+      return {
+        name: office.headmaster_name,
+        nip: office.headmaster_nip || ''
+      };
+    }
+
+    // 2. Fallback ke user dengan role headmaster di database jika ada
+    const userHeadmaster = users.find(u => u.role === 'headmaster');
+    if (userHeadmaster) {
+      return {
+        name: userHeadmaster.name,
+        nip: userHeadmaster.nip || ''
+      };
+    }
+
+    return null;
+  }, [users, offices, selectedUser, user]);
 
   // Readable Period Label for UI and Document Header
   const periodLabel = useMemo(() => {
@@ -848,10 +887,10 @@ export default function RecapPanel({ user }: { user: User }) {
                   {selectedUser ? selectedUser.name : `Semua Pegawai (${availableUsers.length} Orang)`}
                 </span>
               </div>
-              {selectedUser?.nip && (
+              {selectedUser && (
                 <div className="flex justify-between border-b border-slate-100 pb-1 print:pb-0.5">
-                  <span className="text-slate-500 font-medium">NIP</span>
-                  <span className="font-mono font-bold text-slate-900 text-right">{selectedUser.nip}</span>
+                  <span className="text-slate-500 font-medium">NIP / NIPPPK</span>
+                  <span className="font-mono font-bold text-slate-900 text-right">{selectedEmployeeNip || '-'}</span>
                 </div>
               )}
               <div className="flex justify-between border-b border-slate-100 pb-1 print:pb-0.5">
@@ -1364,7 +1403,7 @@ export default function RecapPanel({ user }: { user: User }) {
                 {headmaster ? headmaster.name : '__________________________'}
               </p>
               <p className="text-[8pt] text-slate-600 font-mono leading-tight mt-0.5">
-                NIP: {headmaster?.nip || '__________________________'}
+                NIP / NIPPPK: {headmaster?.nip || '__________________________'}
               </p>
             </div>
           </div>
@@ -1383,7 +1422,11 @@ export default function RecapPanel({ user }: { user: User }) {
                 {selectedUser ? selectedUser.name : user.name}
               </p>
               <p className="text-[8pt] text-slate-600 font-mono leading-tight mt-0.5">
-                NIP: {selectedUser?.nip || user.nip || '____________________'}
+                {selectedUser ? (
+                  <>NIP / NIPPPK: {selectedEmployeeNip || '____________________'}</>
+                ) : (
+                  <>NIP / NIPPPK: {user.nip || '____________________'}</>
+                )}
               </p>
             </div>
           </div>

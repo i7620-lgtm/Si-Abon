@@ -881,7 +881,6 @@ export default function RecapPanel({ user }: { user: User }) {
                   </span>
                 </div>
                 <p className="text-xs text-slate-600 font-semibold tracking-wide uppercase print:text-[9px]">Sistem Absensi Online</p>
-                <p className="text-[11px] text-slate-500 print:text-[8.5px]">{officeName}</p>
               </div>
             </div>
 
@@ -890,9 +889,6 @@ export default function RecapPanel({ user }: { user: User }) {
                 REKAPITULASI ABSENSI
               </h2>
               <p className="text-xs text-slate-500 font-medium print:text-[8.5px]">Dokumen Resmi Sistem Si-Abon</p>
-              <div className="mt-2 print:mt-0.5 inline-block px-3 py-1 bg-slate-100 border border-slate-200 rounded-md text-[11px] font-bold text-slate-800 print:bg-white print:border-slate-400 print:text-[8.5px] print:px-2 print:py-0">
-                Periode: {periodLabel}
-              </div>
             </div>
           </div>
           
@@ -926,12 +922,6 @@ export default function RecapPanel({ user }: { user: User }) {
                 <span className="text-slate-500 font-medium">Tanggal Cetak</span>
                 <span className="font-bold text-slate-900 text-right">
                   {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </span>
-              </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1 print:pb-0.5">
-                <span className="text-slate-500 font-medium">Total Catatan</span>
-                <span className="font-bold text-slate-900 text-right">
-                  {viewFormat === 'daily' ? `${dailyGroupedLogs.length} Hari Kerja (${filteredLogs.length} Log)` : `${filteredLogs.length} Baris Log`}
                 </span>
               </div>
             </div>

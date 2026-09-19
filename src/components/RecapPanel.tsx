@@ -964,6 +964,9 @@ export default function RecapPanel({ user }: { user: User }) {
                   const isIzin = item.specialLog?.type === 'IZIN' && !isCuti;
                   const isTugas = item.specialLog?.type === 'TUGAS';
 
+                  const hasValidIn = item.inLog && item.inLog.notes !== 'TIDAK ABSENSI MASUK';
+                  const hasValidOut = item.outLog && item.outLog.notes !== 'TIDAK ABSENSI PULANG';
+
                   return (
                     <tr 
                       key={`${item.userId}-${item.dateStr}`} 
@@ -1000,22 +1003,31 @@ export default function RecapPanel({ user }: { user: User }) {
                           </span>
                         ) : item.inLog ? (
                           <div>
-                            <div className="font-mono font-semibold text-slate-900">
-                              {format(new Date(item.inLog.timestamp), 'HH:mm:ss')}
-                            </div>
-                            <div className="text-[10px] print:text-[7.5pt]">
-                              {item.inLog.notes === 'TIDAK ABSENSI MASUK' ? (
-                                <span className="text-red-600 font-semibold">Tidak Hadir</span>
-                              ) : item.inLog.is_late ? (
-                                <span className="text-red-600 font-semibold">
-                                  {item.inLog.notes?.startsWith('PIKET:') ? 'Terlambat (Piket)' : 'Terlambat'}
-                                </span>
-                              ) : (
-                                <span className="text-emerald-700 font-semibold">
-                                  {item.inLog.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
-                                </span>
-                              )}
-                            </div>
+                            {item.inLog.notes === 'TIDAK ABSENSI MASUK' ? (
+                              <>
+                                <div className="font-mono font-semibold text-slate-400">-</div>
+                                <div className="text-[10px] print:text-[7.5pt]">
+                                  <span className="text-red-600 font-semibold">Tidak Hadir</span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="font-mono font-semibold text-slate-900">
+                                  {format(new Date(item.inLog.timestamp), 'HH:mm:ss')}
+                                </div>
+                                <div className="text-[10px] print:text-[7.5pt]">
+                                  {item.inLog.is_late ? (
+                                    <span className="text-red-600 font-semibold">
+                                      {item.inLog.notes?.startsWith('PIKET:') ? 'Terlambat (Piket)' : 'Terlambat'}
+                                    </span>
+                                  ) : (
+                                    <span className="text-emerald-700 font-semibold">
+                                      {item.inLog.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
+                                    </span>
+                                  )}
+                                </div>
+                              </>
+                            )}
                           </div>
                         ) : (
                           <span className="text-slate-400 italic text-xs">-</span>
@@ -1030,22 +1042,31 @@ export default function RecapPanel({ user }: { user: User }) {
                           </span>
                         ) : item.outLog ? (
                           <div>
-                            <div className="font-mono font-semibold text-slate-900">
-                              {format(new Date(item.outLog.timestamp), 'HH:mm:ss')}
-                            </div>
-                            <div className="text-[10px] print:text-[7.5pt]">
-                              {item.outLog.notes === 'TIDAK ABSENSI PULANG' ? (
-                                <span className="text-red-600 font-semibold">Tidak Hadir</span>
-                              ) : item.outLog.is_late ? (
-                                <span className="text-orange-600 font-semibold">
-                                  {item.outLog.notes?.startsWith('PIKET:') ? 'Mendahului (Piket)' : 'Mendahului'}
-                                </span>
-                              ) : (
-                                <span className="text-emerald-700 font-semibold">
-                                  {item.outLog.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
-                                </span>
-                              )}
-                            </div>
+                            {item.outLog.notes === 'TIDAK ABSENSI PULANG' ? (
+                              <>
+                                <div className="font-mono font-semibold text-slate-400">-</div>
+                                <div className="text-[10px] print:text-[7.5pt]">
+                                  <span className="text-red-600 font-semibold">Tidak Hadir</span>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="font-mono font-semibold text-slate-900">
+                                  {format(new Date(item.outLog.timestamp), 'HH:mm:ss')}
+                                </div>
+                                <div className="text-[10px] print:text-[7.5pt]">
+                                  {item.outLog.is_late ? (
+                                    <span className="text-orange-600 font-semibold">
+                                      {item.outLog.notes?.startsWith('PIKET:') ? 'Mendahului (Piket)' : 'Mendahului'}
+                                    </span>
+                                  ) : (
+                                    <span className="text-emerald-700 font-semibold">
+                                      {item.outLog.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
+                                    </span>
+                                  )}
+                                </div>
+                              </>
+                            )}
                           </div>
                         ) : (
                           <span className="text-slate-400 italic text-xs">-</span>
@@ -1108,16 +1129,16 @@ export default function RecapPanel({ user }: { user: User }) {
                           <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded text-xs font-bold border border-sky-200 print:text-[7.5pt] print:border-slate-400">
                             Tugas
                           </span>
-                        ) : item.inLog && item.outLog ? (
+                        ) : hasValidIn && hasValidOut ? (
                           <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs font-bold border border-emerald-200 print:text-[7.5pt] print:border-slate-400">
                             {item.piketLogs.length > 0 ? 'Piket Lengkap' : 'Hadir Lengkap'}
                           </span>
-                        ) : item.inLog ? (
-                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs font-bold border border-emerald-200 print:text-[7.5pt] print:border-slate-400">
+                        ) : hasValidIn ? (
+                          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-bold border border-amber-200 print:text-[7.5pt] print:border-slate-400">
                             {item.piketLogs.length > 0 ? 'Piket Masuk' : 'Hadir Masuk'}
                           </span>
-                        ) : item.outLog ? (
-                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs font-bold border border-emerald-200 print:text-[7.5pt] print:border-slate-400">
+                        ) : hasValidOut ? (
+                          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-bold border border-amber-200 print:text-[7.5pt] print:border-slate-400">
                             {item.piketLogs.length > 0 ? 'Piket Pulang' : 'Hadir Pulang'}
                           </span>
                         ) : (
@@ -1174,8 +1195,8 @@ export default function RecapPanel({ user }: { user: User }) {
 
                       {/* Jam */}
                       <td className="px-3 py-1.5 font-mono text-slate-700 print:px-1.5 print:py-1 print:text-slate-900 whitespace-nowrap">
-                        {log.type === 'IZIN' && log.notes?.startsWith('CUTI:') ? (
-                          <span className="text-slate-400">-</span>
+                        {(log.type === 'IZIN' && log.notes?.startsWith('CUTI:')) || log.notes === 'TIDAK ABSENSI MASUK' || log.notes === 'TIDAK ABSENSI PULANG' ? (
+                          <span className="text-slate-400 font-semibold">-</span>
                         ) : (
                           format(new Date(log.timestamp), 'HH:mm:ss')
                         )}
@@ -1271,7 +1292,7 @@ export default function RecapPanel({ user }: { user: User }) {
                       {/* Status */}
                       <td className="px-3 py-1.5 print:px-1.5 print:py-1">
                         {log.notes === 'TIDAK ABSENSI MASUK' || log.notes === 'TIDAK ABSENSI PULANG' ? (
-                          <span className="text-red-600 font-bold text-xs print:text-[8pt]">Terlambat</span>
+                          <span className="text-red-600 font-bold text-xs print:text-[8pt]">Tidak Hadir</span>
                         ) : log.type === 'IZIN' && log.notes?.startsWith('CUTI:') ? (
                           <span className="text-teal-700 font-semibold text-xs print:text-[8pt]">Cuti Disetujui</span>
                         ) : log.type === 'SAKIT' ? (

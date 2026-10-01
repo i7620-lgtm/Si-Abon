@@ -38,6 +38,9 @@ const MONTH_OPTIONS = [
 ];
 
 export default function RecapPanel({ user }: { user: User }) {
+  const isEmployee = user.role === 'employee';
+  const isAdminOrHeadmaster = ['admin', 'headmaster', 'dinas', 'super_admin'].includes(user.role);
+
   const today = useMemo(() => new Date(), []);
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth();
@@ -47,6 +50,9 @@ export default function RecapPanel({ user }: { user: User }) {
   const [users, setUsers] = useState<User[]>([]);
   const [offices, setOffices] = useState<Office[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Scope: 'school' (1 sekolah / semua pegawai) or 'single' (per pegawai)
+  const [reportScope, setReportScope] = useState<'school' | 'single'>(isEmployee ? 'single' : 'school');
 
   // Filter Modes
   const [periodMode, setPeriodMode] = useState<PeriodMode>('month');
@@ -58,7 +64,7 @@ export default function RecapPanel({ user }: { user: User }) {
 
   // User & Role Filter
   const [filterRole, setFilterRole] = useState('');
-  const [filterUser, setFilterUser] = useState('');
+  const [filterUser, setFilterUser] = useState<string>(isEmployee ? String(user.id) : '');
 
   // Table Print & View Format: 'daily' (compact 1 row per day) or 'detailed' (per log entry)
   const [viewFormat, setViewFormat] = useState<'daily' | 'detailed'>('daily');
@@ -121,8 +127,13 @@ export default function RecapPanel({ user }: { user: User }) {
     }
 
     Promise.all([
-      api.getAttendance({ start_date: qsStart, end_date: qsEnd, current_user: user }),
-      api.getLeaves(undefined, user),
+      api.getAttendance({ 
+        start_date: qsStart, 
+        end_date: qsEnd, 
+        current_user: user,
+        ...(isEmployee ? { user_id: user.id } : {})
+      }),
+      api.getLeaves(isEmployee ? user.id : undefined, user),
       api.getUsers(user),
       api.getOffices()
     ]).then(([fetchedLogs, fetchedLeaves, fetchedUsers, fetchedOffices]) => {
@@ -295,6 +306,9 @@ export default function RecapPanel({ user }: { user: User }) {
   // Filtered by role & user
   const filteredLogs = useMemo(() => {
     return logs.filter(log => {
+      // Regular employee can ONLY ever see and print their own logs
+      if (isEmployee && log.user_id !== user.id) return false;
+
       const roleMatch = filterRole ? log.role === filterRole : true;
       const userMatch = filterUser ? log.user_id === parseInt(filterUser) : true;
       if (!roleMatch || !userMatch) return false;
@@ -318,19 +332,22 @@ export default function RecapPanel({ user }: { user: User }) {
 
       return true;
     });
-  }, [logs, filterRole, filterUser, startDate, endDate]);
+  }, [logs, isEmployee, user.id, filterRole, filterUser, startDate, endDate]);
 
   const selectedUser = useMemo(() => {
-    return users.find(u => u.id === parseInt(filterUser));
-  }, [users, filterUser]);
+    if (isEmployee) return user;
+    if (!filterUser) return null;
+    return users.find(u => u.id === parseInt(filterUser)) || null;
+  }, [isEmployee, user, users, filterUser]);
 
   // NIP / NIPPPK murni milik pegawai yang dipilih, dilarang keras fallback ke NIP admin/super admin
   const selectedEmployeeNip = useMemo(() => {
-    if (!selectedUser) return '';
-    if (selectedUser.nip && typeof selectedUser.nip === 'string' && selectedUser.nip.trim() !== '') {
-      return selectedUser.nip.trim();
+    const target = selectedUser || (isEmployee ? user : null);
+    if (!target) return '';
+    if (target.nip && typeof target.nip === 'string' && target.nip.trim() !== '') {
+      return target.nip.trim();
     }
-    const logWithNip = logs.find(l => l.user_id === selectedUser.id && ((l as any).user_nip || (l as any).users?.nip));
+    const logWithNip = logs.find(l => l.user_id === target.id && ((l as any).user_nip || (l as any).users?.nip));
     if (logWithNip) {
       const found = (logWithNip as any).user_nip || (logWithNip as any).users?.nip;
       if (found && typeof found === 'string' && found.trim() !== '') {
@@ -338,13 +355,14 @@ export default function RecapPanel({ user }: { user: User }) {
       }
     }
     return '';
-  }, [selectedUser, logs]);
+  }, [selectedUser, isEmployee, user, logs]);
 
   // Filtered users for dropdown based on filterRole
   const availableUsers = useMemo(() => {
+    if (isEmployee) return [user];
     if (!filterRole) return users;
     return users.filter(u => u.role === filterRole);
-  }, [users, filterRole]);
+  }, [isEmployee, user, users, filterRole]);
 
   // Headmaster lookup for signature
   const headmaster = useMemo(() => {
@@ -514,7 +532,13 @@ export default function RecapPanel({ user }: { user: User }) {
     setCustomStartDate('');
     setCustomEndDate('');
     setFilterRole('');
-    setFilterUser('');
+    if (isEmployee) {
+      setFilterUser(String(user.id));
+      setReportScope('single');
+    } else {
+      setFilterUser('');
+      setReportScope('school');
+    }
   };
 
   return (
@@ -527,8 +551,14 @@ export default function RecapPanel({ user }: { user: User }) {
               <FileText size={20} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-slate-800">Rekap Laporan Absensi</h2>
-              <p className="text-xs text-slate-500">Cetak dokumen resmi presensi harian, bulanan, tahunan, atau per pegawai</p>
+              <h2 className="text-xl font-bold text-slate-800">
+                {isEmployee ? 'Cetak Rekap Absensi Pribadi' : 'Rekap Laporan Absensi Sekolah'}
+              </h2>
+              <p className="text-xs text-slate-500">
+                {isEmployee 
+                  ? 'Cetak dokumen resmi presensi kehadiran mandiri harian, bulanan, atau tahunan'
+                  : 'Cetak dokumen resmi presensi 1 sekolah (seluruh pegawai) atau per pegawai'}
+              </p>
             </div>
           </div>
         </div>
@@ -576,13 +606,90 @@ export default function RecapPanel({ user }: { user: User }) {
             id="btn-print-recap"
           >
             <Printer size={16} />
-            <span>Print Laporan</span>
+            <span>
+              {isEmployee 
+                ? 'Cetak Rekap Absensi Saya' 
+                : (!filterUser ? 'Cetak Rekap 1 Sekolah' : 'Cetak Rekap Pegawai')}
+            </span>
           </button>
         </div>
       </div>
 
       {/* Filter Control Box (Screen Only) */}
       <div className="bg-white rounded-xl border border-slate-200/80 shadow-sm p-4 mb-6 print:hidden space-y-4">
+        {/* Scope selector for Admin / Kepala Sekolah */}
+        {isAdminOrHeadmaster && (
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-emerald-50/80 border border-emerald-200/80 p-3 rounded-xl">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 bg-emerald-600 text-white rounded-lg flex items-center justify-center font-bold shadow-sm">
+                <Building2 size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-emerald-950">Mode Cetak Rekapitulasi</p>
+                <p className="text-[11px] text-emerald-700">Pilih cetak rekap 1 sekolah penuh (seluruh pegawai) atau rekap per pegawai</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setReportScope('school');
+                  setFilterUser('');
+                  setFilterRole('');
+                }}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  !filterUser
+                    ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/30'
+                    : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
+                }`}
+              >
+                <Users size={14} />
+                <span>🏫 Rekap 1 Sekolah (Semua)</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${!filterUser ? 'bg-emerald-700 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  {availableUsers.length} Pegawai
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setReportScope('single');
+                  if (!filterUser && availableUsers.length > 0) {
+                    setFilterUser(String(availableUsers[0].id));
+                  }
+                }}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  filterUser
+                    ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600/30'
+                    : 'bg-white text-slate-700 hover:bg-slate-50 border border-slate-200'
+                }`}
+              >
+                <UserIcon size={14} />
+                <span>👤 Rekap Per Pegawai</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Regular employee banner */}
+        {isEmployee && (
+          <div className="flex items-center gap-3 bg-emerald-50/80 border border-emerald-200/80 p-3 rounded-xl text-xs text-emerald-900">
+            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-700 flex-shrink-0">
+              <UserIcon size={16} />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-emerald-950">Rekap Presensi Mandiri: {user.name}</p>
+              <p className="text-[11px] text-emerald-700">
+                {selectedEmployeeNipType}: {user.nip || '-'} • {officeName}
+              </p>
+            </div>
+            <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-lg font-bold text-[10px] border border-emerald-200">
+              Absensi Pribadi
+            </span>
+          </div>
+        )}
+
         {/* Row 1: Period Mode Segmented Selector */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2">
@@ -778,41 +885,69 @@ export default function RecapPanel({ user }: { user: User }) {
           </div>
 
           {/* User & Role Filters */}
-          <div className="md:col-span-6 flex flex-wrap items-center gap-2 justify-end">
-            <div className="w-full sm:w-auto flex-1 min-w-[130px]">
-              <label className="block text-[10px] text-slate-400 font-medium uppercase mb-0.5">Role / Jabatan</label>
-              <select 
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none"
-                value={filterRole}
-                onChange={e => {
-                  setFilterRole(e.target.value);
-                  setFilterUser(''); // reset user selection if role changed
-                }}
-              >
-                <option value="">Semua Role</option>
-                <option value="employee">Pegawai Non-ASN / Guru</option>
-                <option value="admin">Admin Sekolah</option>
-                <option value="headmaster">Kepala Sekolah</option>
-                <option value="dinas">Dinas Pendidikan</option>
-              </select>
-            </div>
+          {isAdminOrHeadmaster && (
+            <div className="md:col-span-6 flex flex-wrap items-center gap-2 justify-end">
+              {!filterUser ? (
+                /* When Rekap 1 Sekolah is selected */
+                <div className="w-full flex items-center justify-between sm:justify-end gap-2 bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg text-xs">
+                  <span className="text-slate-600 font-medium flex items-center gap-1.5">
+                    <Users size={14} className="text-emerald-600" />
+                    <span>Target: <strong>Seluruh Pegawai Sekolah ({availableUsers.length} orang)</strong></span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setReportScope('single');
+                      if (availableUsers.length > 0) setFilterUser(String(availableUsers[0].id));
+                    }}
+                    className="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold hover:underline"
+                  >
+                    Pilih per pegawai
+                  </button>
+                </div>
+              ) : (
+                /* When Rekap Per Pegawai is selected */
+                <>
+                  <div className="w-full sm:w-auto flex-1 min-w-[130px]">
+                    <label className="block text-[10px] text-slate-400 font-medium uppercase mb-0.5">Role / Jabatan</label>
+                    <select 
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none"
+                      value={filterRole}
+                      onChange={e => {
+                        setFilterRole(e.target.value);
+                        setFilterUser(''); // reset user selection if role changed
+                      }}
+                    >
+                      <option value="">Semua Role</option>
+                      <option value="employee">Pegawai Non-ASN / Guru</option>
+                      <option value="admin">Admin Sekolah</option>
+                      <option value="headmaster">Kepala Sekolah</option>
+                      <option value="dinas">Dinas Pendidikan</option>
+                    </select>
+                  </div>
 
-            <div className="w-full sm:w-auto flex-1 min-w-[180px]">
-              <label className="block text-[10px] text-slate-400 font-medium uppercase mb-0.5">Pilih Pegawai</label>
-              <select 
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none"
-                value={filterUser}
-                onChange={e => setFilterUser(e.target.value)}
-              >
-                <option value="">Semua Pegawai ({availableUsers.length})</option>
-                {availableUsers.map(u => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} {u.nip ? `(${u.nip_type || 'NIP'}: ${u.nip})` : ''}
-                  </option>
-                ))}
-              </select>
+                  <div className="w-full sm:w-auto flex-1 min-w-[180px]">
+                    <label className="block text-[10px] text-slate-400 font-medium uppercase mb-0.5">Pilih Pegawai</label>
+                    <select 
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium focus:ring-2 focus:ring-emerald-500 focus:bg-white outline-none"
+                      value={filterUser}
+                      onChange={e => {
+                        setFilterUser(e.target.value);
+                        if (!e.target.value) setReportScope('school');
+                      }}
+                    >
+                      <option value="">-- Rekap 1 Sekolah (Semua Pegawai) --</option>
+                      {availableUsers.map(u => (
+                        <option key={u.id} value={u.id}>
+                          {u.name} {u.nip ? `(${u.nip_type || 'NIP'}: ${u.nip})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
-          </div>
+          )}
         </div>
 
         {/* Selected Filter Badge Information */}
@@ -824,7 +959,9 @@ export default function RecapPanel({ user }: { user: User }) {
             </span>
             <span className="text-slate-300">•</span>
             <span className="px-2 py-0.5 bg-slate-100 text-slate-700 font-medium rounded">
-              {selectedUser ? `Pegawai: ${selectedUser.name}` : `Semua Pegawai (${availableUsers.length} orang)`}
+              {isEmployee 
+                ? `Pegawai: ${user.name}` 
+                : (selectedUser ? `Pegawai: ${selectedUser.name}` : `Seluruh Pegawai Sekolah (${availableUsers.length} orang)`)}
             </span>
           </div>
 
@@ -877,9 +1014,13 @@ export default function RecapPanel({ user }: { user: User }) {
 
             <div className="text-right">
               <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight print:text-base">
-                REKAPITULASI ABSENSI
+                {!selectedUser ? 'REKAPITULASI ABSENSI SEKOLAH' : 'REKAPITULASI ABSENSI'}
               </h2>
-              <p className="text-xs text-slate-500 font-medium print:text-[8.5px]">Dokumen Resmi Sistem Si-Abon</p>
+              <p className="text-xs text-slate-500 font-medium print:text-[8.5px]">
+                {!selectedUser 
+                  ? 'Laporan Kehadiran Seluruh Pegawai Satuan Pendidikan' 
+                  : (isEmployee ? 'Dokumen Resmi Kehadiran Mandiri Si-Abon' : 'Dokumen Resmi Presensi Pegawai')}
+              </p>
             </div>
           </div>
           
@@ -887,9 +1028,11 @@ export default function RecapPanel({ user }: { user: User }) {
           <div className="grid grid-cols-2 gap-x-8 md:gap-x-12 gap-y-2 text-xs border-t border-slate-200 pt-4 print:pt-1.5 print:gap-y-0.5 print:gap-x-6 print:border-slate-300 print:text-[8.5px]">
             <div className="space-y-1.5 print:space-y-0.5">
               <div className="flex justify-between border-b border-slate-100 pb-1 print:pb-0.5">
-                <span className="text-slate-500 font-medium">Nama Pegawai</span>
+                <span className="text-slate-500 font-medium">
+                  {selectedUser ? 'Nama Pegawai' : 'Cakupan Rekap'}
+                </span>
                 <span className="font-bold text-slate-900 text-right">
-                  {selectedUser ? selectedUser.name : `Semua Pegawai (${availableUsers.length} Orang)`}
+                  {selectedUser ? selectedUser.name : `Seluruh Pegawai (${availableUsers.length} Orang)`}
                 </span>
               </div>
               {selectedUser && (

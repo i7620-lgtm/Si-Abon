@@ -1631,8 +1631,8 @@ export default function RecapPanel({ user }: { user: User }) {
               <p className="text-[7.5pt] print:text-[7pt] text-slate-700 leading-tight">Mengetahui,</p>
               <p className="text-[7.5pt] print:text-[7pt] text-slate-700 font-medium leading-tight">Kepala Sekolah / Atasan Langsung</p>
             </div>
-            {/* Ruang tanda tangan */}
-            <div className="h-8 print:h-7"></div>
+            {/* Ruang tanda tangan (+2 enter ekstra agar lebih lega) */}
+            <div className="h-14 print:h-[52px]"></div>
             <div className="w-full flex flex-col items-center">
               <div className="border-b border-slate-900 w-44 mb-0.5"></div>
               <p className="text-[8pt] print:text-[7.8pt] font-bold text-slate-900 leading-tight">
@@ -1651,8 +1651,8 @@ export default function RecapPanel({ user }: { user: User }) {
                 {selectedUser ? 'Pegawai yang bersangkutan,' : 'Dibuat & Diverifikasi oleh,'}
               </p>
             </div>
-            {/* Ruang tanda tangan */}
-            <div className="h-8 print:h-7"></div>
+            {/* Ruang tanda tangan (+2 enter ekstra agar lebih lega) */}
+            <div className="h-14 print:h-[52px]"></div>
             <div className="w-full flex flex-col items-center">
               <div className="border-b border-slate-900 w-44 mb-0.5"></div>
               <p className="text-[8pt] print:text-[7.8pt] font-bold text-slate-900 leading-tight">

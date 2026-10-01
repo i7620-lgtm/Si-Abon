@@ -1225,24 +1225,24 @@ export default function RecapPanel({ user }: { user: User }) {
                       {/* Absen Masuk */}
                       <td className="px-3 py-1.5 print:px-1 print:py-0.5">
                         {isOffDay ? (
-                          <span className="text-slate-400 font-semibold print:text-slate-500 print:text-[6.8pt]">-</span>
+                          <span className="text-slate-400 font-semibold print:text-slate-500 print:text-[6.5pt]">-</span>
                         ) : item.specialLog ? (
-                          <span className="text-teal-700 font-semibold text-xs print:text-[6.8pt]">
+                          <span className="text-teal-700 font-semibold text-xs print:text-[6.5pt]">
                             {isCuti ? 'CUTI' : isSakit ? 'SAKIT' : isIzin ? 'IZIN' : 'TUGAS'}
                           </span>
                         ) : item.inLog ? (
                           item.inLog.notes === 'TIDAK ABSENSI MASUK' ? (
-                            <span className="text-slate-400 font-semibold print:text-slate-500 print:text-[6.8pt]">-</span>
+                            <span className="text-slate-400 font-semibold print:text-slate-500 print:text-[6.5pt]">-</span>
                           ) : (
-                            <div className="font-mono font-semibold text-slate-900 print:text-[6.8pt] print:leading-tight">
-                              {format(new Date(item.inLog.timestamp), 'HH:mm:ss')}
-                              <div className="text-[10px] print:hidden">
+                            <div className="font-mono font-semibold text-slate-900 print:text-[6.5pt] print:leading-tight">
+                              <div>{format(new Date(item.inLog.timestamp), 'HH:mm:ss')}</div>
+                              <div className="text-[10px] print:text-[5.5pt] print:leading-none font-sans font-medium mt-0.5 print:mt-0">
                                 {item.inLog.is_late ? (
-                                  <span className="text-red-600 font-semibold">
+                                  <span className="text-red-600 print:text-red-700 font-semibold">
                                     {item.inLog.notes?.startsWith('PIKET:') ? 'Terlambat (Piket)' : 'Terlambat'}
                                   </span>
                                 ) : (
-                                  <span className="text-emerald-700 font-semibold">
+                                  <span className="text-emerald-700 print:text-emerald-800 font-semibold">
                                     {item.inLog.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
                                   </span>
                                 )}
@@ -1250,31 +1250,31 @@ export default function RecapPanel({ user }: { user: User }) {
                             </div>
                           )
                         ) : (
-                          <span className="text-slate-400 italic text-xs print:text-[6.8pt]">-</span>
+                          <span className="text-slate-400 italic text-xs print:text-[6.5pt]">-</span>
                         )}
                       </td>
 
                       {/* Absen Pulang */}
                       <td className="px-3 py-1.5 print:px-1 print:py-0.5">
                         {isOffDay ? (
-                          <span className="text-slate-400 font-semibold print:text-slate-500 print:text-[6.8pt]">-</span>
+                          <span className="text-slate-400 font-semibold print:text-slate-500 print:text-[6.5pt]">-</span>
                         ) : item.specialLog ? (
-                          <span className="text-teal-700 font-semibold text-xs print:text-[6.8pt]">
+                          <span className="text-teal-700 font-semibold text-xs print:text-[6.5pt]">
                             {isCuti ? 'CUTI' : isSakit ? 'SAKIT' : isIzin ? 'IZIN' : 'TUGAS'}
                           </span>
                         ) : item.outLog ? (
                           item.outLog.notes === 'TIDAK ABSENSI PULANG' ? (
-                            <span className="text-slate-400 font-semibold print:text-slate-500 print:text-[6.8pt]">-</span>
+                            <span className="text-slate-400 font-semibold print:text-slate-500 print:text-[6.5pt]">-</span>
                           ) : (
-                            <div className="font-mono font-semibold text-slate-900 print:text-[6.8pt] print:leading-tight">
-                              {format(new Date(item.outLog.timestamp), 'HH:mm:ss')}
-                              <div className="text-[10px] print:hidden">
+                            <div className="font-mono font-semibold text-slate-900 print:text-[6.5pt] print:leading-tight">
+                              <div>{format(new Date(item.outLog.timestamp), 'HH:mm:ss')}</div>
+                              <div className="text-[10px] print:text-[5.5pt] print:leading-none font-sans font-medium mt-0.5 print:mt-0">
                                 {item.outLog.is_late ? (
-                                  <span className="text-orange-600 font-semibold">
+                                  <span className="text-orange-600 print:text-orange-700 font-semibold">
                                     {item.outLog.notes?.startsWith('PIKET:') ? 'Mendahului (Piket)' : 'Mendahului'}
                                   </span>
                                 ) : (
-                                  <span className="text-emerald-700 font-semibold">
+                                  <span className="text-emerald-700 print:text-emerald-800 font-semibold">
                                     {item.outLog.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
                                   </span>
                                 )}
@@ -1282,7 +1282,7 @@ export default function RecapPanel({ user }: { user: User }) {
                             </div>
                           )
                         ) : (
-                          <span className="text-slate-400 italic text-xs print:text-[6.8pt]">-</span>
+                          <span className="text-slate-400 italic text-xs print:text-[6.5pt]">-</span>
                         )}
                       </td>
 
@@ -1441,7 +1441,34 @@ export default function RecapPanel({ user }: { user: User }) {
                         {(log.type === 'IZIN' && log.notes?.startsWith('CUTI:')) || log.notes === 'TIDAK ABSENSI MASUK' || log.notes === 'TIDAK ABSENSI PULANG' ? (
                           <span className="text-slate-400 font-semibold">-</span>
                         ) : (
-                          format(new Date(log.timestamp), 'HH:mm:ss')
+                          <div>
+                            <div className="font-semibold">{format(new Date(log.timestamp), 'HH:mm:ss')}</div>
+                            <div className="text-[10px] print:text-[6.5pt] font-sans font-medium mt-0.5 print:mt-0">
+                              {log.notes === 'Koreksi Absensi (Lupa Absen)' ? (
+                                <span className="text-emerald-700 print:text-emerald-800 font-semibold">Tepat Waktu</span>
+                              ) : log.type === 'IN' ? (
+                                log.is_late ? (
+                                  <span className="text-red-600 print:text-red-700 font-semibold">
+                                    {log.notes?.startsWith('PIKET:') ? 'Terlambat (Piket)' : 'Terlambat'}
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-700 print:text-emerald-800 font-semibold">
+                                    {log.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
+                                  </span>
+                                )
+                              ) : log.type === 'OUT' ? (
+                                log.is_late ? (
+                                  <span className="text-orange-600 print:text-orange-700 font-semibold">
+                                    {log.notes?.startsWith('PIKET:') ? 'Mendahului (Piket)' : 'Mendahului'}
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-700 print:text-emerald-800 font-semibold">
+                                    {log.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
+                                  </span>
+                                )
+                              ) : null}
+                            </div>
+                          </div>
                         )}
                       </td>
 
@@ -1597,20 +1624,20 @@ export default function RecapPanel({ user }: { user: User }) {
         </div>
 
         {/* TANDA TANGAN RESMI KEDINASAN / SEKOLAH (Print Footer) */}
-        <div className="hidden print:grid grid-cols-2 gap-4 mt-2 px-6 pb-0 break-inside-avoid text-center">
+        <div className="hidden print:grid grid-cols-2 gap-4 mt-2 print:mt-1 px-6 pb-0 break-inside-avoid text-center">
           {/* Pihak 1 (Kiri): Atasan Langsung / Kepala Sekolah */}
           <div className="flex flex-col items-center">
-            <div className="h-7 flex flex-col justify-end items-center">
-              <p className="text-[7.5pt] text-slate-700 leading-tight">Mengetahui,</p>
-              <p className="text-[7.5pt] text-slate-700 font-medium leading-tight">Kepala Sekolah / Atasan Langsung</p>
+            <div className="h-7 print:h-5 flex flex-col justify-end items-center">
+              <p className="text-[7.5pt] print:text-[6.8pt] text-slate-700 leading-tight">Mengetahui,</p>
+              <p className="text-[7.5pt] print:text-[6.8pt] text-slate-700 font-medium leading-tight">Kepala Sekolah / Atasan Langsung</p>
             </div>
-            <div className="h-8"></div>
+            <div className="h-8 print:h-5"></div>
             <div className="w-full flex flex-col items-center">
-              <div className="border-b border-slate-900 w-44 mb-0.5"></div>
-              <p className="text-[8pt] font-bold text-slate-900 leading-tight">
+              <div className="border-b border-slate-900 w-40 mb-0.5"></div>
+              <p className="text-[8pt] print:text-[7.5pt] font-bold text-slate-900 leading-tight">
                 {headmaster ? headmaster.name : '__________________________'}
               </p>
-              <p className="text-[7pt] text-slate-600 font-mono leading-tight mt-0.5">
+              <p className="text-[7pt] print:text-[6.5pt] text-slate-600 font-mono leading-tight mt-0.5">
                 {headmaster?.nip_type || 'NIP'}: {headmaster?.nip || '__________________________'}
               </p>
             </div>
@@ -1618,18 +1645,18 @@ export default function RecapPanel({ user }: { user: User }) {
 
           {/* Pihak 2 (Kanan): Pegawai yang bersangkutan */}
           <div className="flex flex-col items-center">
-            <div className="h-7 flex flex-col justify-end items-center">
-              <p className="text-[7.5pt] text-slate-700 font-medium leading-tight">
+            <div className="h-7 print:h-5 flex flex-col justify-end items-center">
+              <p className="text-[7.5pt] print:text-[6.8pt] text-slate-700 font-medium leading-tight">
                 {selectedUser ? 'Pegawai yang bersangkutan,' : 'Dibuat & Diverifikasi oleh,'}
               </p>
             </div>
-            <div className="h-8"></div>
+            <div className="h-8 print:h-5"></div>
             <div className="w-full flex flex-col items-center">
-              <div className="border-b border-slate-900 w-44 mb-0.5"></div>
-              <p className="text-[8pt] font-bold text-slate-900 leading-tight">
+              <div className="border-b border-slate-900 w-40 mb-0.5"></div>
+              <p className="text-[8pt] print:text-[7.5pt] font-bold text-slate-900 leading-tight">
                 {selectedUser ? selectedUser.name : user.name}
               </p>
-              <p className="text-[7pt] text-slate-600 font-mono leading-tight mt-0.5">
+              <p className="text-[7pt] print:text-[6.5pt] text-slate-600 font-mono leading-tight mt-0.5">
                 {selectedUser ? (
                   <>{selectedEmployeeNipType}: {selectedEmployeeNip || '____________________'}</>
                 ) : (

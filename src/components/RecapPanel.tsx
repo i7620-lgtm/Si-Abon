@@ -444,6 +444,10 @@ export default function RecapPanel({ user }: { user: User }) {
       userNipType?: 'NIP' | 'NIPPPK';
       dateStr: string;
       dayName: string;
+      dayOfWeek: number;
+      isWeekendOrDayOff: boolean;
+      isHoliday: boolean;
+      holidayName: string;
       inLog?: AttendanceLog;
       outLog?: AttendanceLog;
       specialLog?: AttendanceLog;
@@ -452,26 +456,96 @@ export default function RecapPanel({ user }: { user: User }) {
       officeName: string;
     }>();
 
-    filteredLogs.forEach(log => {
-      const logDate = new Date(log.timestamp);
-      const dateStr = format(logDate, 'yyyy-MM-dd');
-      const key = `${log.user_id}_${dateStr}`;
-      const logUser = users.find(u => u.id === log.user_id);
-      const userName = log.name || logUser?.name || 'Pegawai';
-      const userNip = logUser?.nip;
-      const userNipType = logUser?.nip_type || (userNip && userNip.replace(/\s+/g, '').length === 21 ? 'NIPPPK' : 'NIP');
+    // 1. Generate all dates within the period so every day in the month is present
+    const dateList: string[] = [];
+    if (startDate && endDate) {
+      const [sy, sm, sd] = startDate.split('-').map(Number);
+      const [ey, em, ed] = endDate.split('-').map(Number);
+      const curr = new Date(sy, sm - 1, sd);
+      const end = new Date(ey, em - 1, ed);
+      let count = 0;
+      while (curr <= end && count < 366) {
+        dateList.push(format(curr, 'yyyy-MM-dd'));
+        curr.setDate(curr.getDate() + 1);
+        count++;
+      }
+    }
 
-      if (!map.has(key)) {
+    // 2. Target users to populate
+    const targetUsers = selectedUser 
+      ? [selectedUser] 
+      : (availableUsers.length > 0 ? availableUsers : (users.length > 0 ? users : [user]));
+
+    // 3. Pre-populate all calendar days for each target user
+    targetUsers.forEach(u => {
+      const userOfficeId = u.office_id || user.office_id;
+      const userOffice = offices.find(o => o.id === userOfficeId) || offices[0];
+      const userNip = u.nip;
+      const userNipType = u.nip_type || (userNip && userNip.replace(/\s+/g, '').length === 21 ? 'NIPPPK' : 'NIP');
+
+      dateList.forEach(dateStr => {
         const [y, m, d] = dateStr.split('-').map(Number);
         const dayDate = new Date(y, m - 1, d);
+        const dayOfWeek = dayDate.getDay(); // 0: Sunday, 6: Saturday
         const dayName = format(dayDate, 'EEEE', { locale: id });
+
+        const scheduleForDay = userOffice?.schedule ? userOffice.schedule[dayOfWeek] : undefined;
+        const isSunday = dayOfWeek === 0;
+        const isSaturday = dayOfWeek === 6;
+        const isOfficeDayOff = scheduleForDay ? Boolean(scheduleForDay.is_off) : (isSunday || isSaturday);
+        const calHoliday = (userOffice?.holidays || []).find((h: any) => h.date === dateStr);
+        const isHoliday = Boolean(calHoliday);
+        const holidayName = calHoliday?.name || '';
+        const isWeekendOrDayOff = isOfficeDayOff || isSunday || isSaturday;
+
+        const key = `${u.id}_${dateStr}`;
         map.set(key, {
-          userId: log.user_id,
-          userName,
+          userId: u.id,
+          userName: u.name,
           userNip,
           userNipType,
           dateStr,
           dayName,
+          dayOfWeek,
+          isWeekendOrDayOff,
+          isHoliday,
+          holidayName,
+          inLog: undefined,
+          outLog: undefined,
+          specialLog: undefined,
+          piketLogs: [],
+          notes: [],
+          officeName: u.office_name || officeName
+        });
+      });
+    });
+
+    // 4. Overlay attendance logs onto the populated days
+    filteredLogs.forEach(log => {
+      const logDate = new Date(log.timestamp);
+      const dateStr = format(logDate, 'yyyy-MM-dd');
+      const key = `${log.user_id}_${dateStr}`;
+
+      if (!map.has(key)) {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const dayDate = new Date(y, m - 1, d);
+        const dayOfWeek = dayDate.getDay();
+        const dayName = format(dayDate, 'EEEE', { locale: id });
+        const logUser = users.find(u => u.id === log.user_id) || user;
+        const userNip = logUser?.nip;
+        const userNipType = logUser?.nip_type || (userNip && userNip.replace(/\s+/g, '').length === 21 ? 'NIPPPK' : 'NIP');
+
+        map.set(key, {
+          userId: log.user_id,
+          userName: log.name || logUser.name || 'Pegawai',
+          userNip,
+          userNipType,
+          dateStr,
+          dayName,
+          dayOfWeek,
+          isWeekendOrDayOff: dayOfWeek === 0 || dayOfWeek === 6,
+          isHoliday: false,
+          holidayName: '',
           piketLogs: [],
           notes: [],
           officeName: log.office_name || officeName
@@ -511,14 +585,14 @@ export default function RecapPanel({ user }: { user: User }) {
     });
 
     const list = Array.from(map.values());
-    // Sort descending by date, then by user name
+    // Sort chronologically ascending by date (1st to 30th/31st of the month), then by user name
     list.sort((a, b) => {
-      const dateDiff = new Date(b.dateStr).getTime() - new Date(a.dateStr).getTime();
-      if (dateDiff !== 0) return dateDiff;
+      const dateCompare = a.dateStr.localeCompare(b.dateStr);
+      if (dateCompare !== 0) return dateCompare;
       return a.userName.localeCompare(b.userName);
     });
     return list;
-  }, [filteredLogs, users, officeName]);
+  }, [filteredLogs, startDate, endDate, selectedUser, availableUsers, users, user, offices, officeName]);
 
   const handlePrint = () => {
     window.print();
@@ -973,7 +1047,7 @@ export default function RecapPanel({ user }: { user: User }) {
             <div className="text-slate-500">
               Total Data:{' '}
               <span className="font-bold text-slate-800">
-                {viewFormat === 'daily' ? `${dailyGroupedLogs.length} Hari Kerja (${filteredLogs.length} Log)` : `${filteredLogs.length} Log`}
+                {viewFormat === 'daily' ? `${dailyGroupedLogs.length} Hari (${filteredLogs.length} Log)` : `${filteredLogs.length} Log`}
               </span>
             </div>
           </div>
@@ -983,40 +1057,40 @@ export default function RecapPanel({ user }: { user: User }) {
       {/* REKAPITULASI ABSENSI SHEET (Printable Document & Screen Preview) */}
       <div 
         id="recap-table" 
-        className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm print:border-none print:shadow-none print:rounded-none print:m-0 print:p-0 print:overflow-visible"
+        className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm print:border-none print:shadow-none print:rounded-none print:m-0 print:p-0 print:overflow-visible print:break-inside-avoid print:page-break-inside-avoid"
       >
         {/* KOP RESMI DOKUMEN REKAPITULASI (Always shown on print, styled professionally) */}
-        <div className="p-6 md:p-8 border-b-2 border-slate-900 bg-white print:p-3 print:border-b-2 print:border-slate-900">
-          <div className="flex justify-between items-center mb-6 print:mb-2">
-            <div className="flex items-center gap-4 print:gap-2.5">
+        <div className="p-4 md:p-6 border-b-2 border-slate-900 bg-white print:p-2 print:border-b-2 print:border-slate-900">
+          <div className="flex justify-between items-center mb-4 print:mb-1">
+            <div className="flex items-center gap-3 print:gap-2">
               {selectedUser?.photo_url ? (
                 <img 
                   src={selectedUser.photo_url} 
                   alt={selectedUser.name} 
-                  className="w-16 h-16 md:w-20 md:h-20 rounded-xl object-cover border-2 border-slate-200 print:w-11 print:h-11 print:rounded-lg print:border-slate-400"
+                  className="w-14 h-14 md:w-16 md:h-16 rounded-xl object-cover border-2 border-slate-200 print:w-8 print:h-8 print:rounded-md print:border-slate-400"
                   referrerPolicy="no-referrer"
                 />
               ) : (
-                <div className="w-14 h-14 md:w-16 md:h-16 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-2xl shadow-sm print:w-10 print:h-10 print:text-lg print:rounded-lg print:border print:border-emerald-700">
+                <div className="w-12 h-12 md:w-14 md:h-14 bg-emerald-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-sm print:w-7 print:h-7 print:text-sm print:rounded-md print:border print:border-emerald-700">
                   S
                 </div>
               )}
               <div>
                 <div className="flex items-center gap-2 mb-0.5">
-                  <h1 className="text-2xl font-black text-slate-900 tracking-tight print:text-lg">Si-Abon</h1>
-                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full uppercase tracking-wider print:text-[8px] print:px-1.5 print:py-0 print:border print:border-emerald-300">
+                  <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight print:text-sm print:leading-tight">Si-Abon</h1>
+                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-bold rounded-full uppercase tracking-wider print:text-[6.5pt] print:px-1 print:py-0 print:border print:border-emerald-300">
                     Official
                   </span>
                 </div>
-                <p className="text-xs text-slate-600 font-semibold tracking-wide uppercase print:text-[9px]">Sistem Absensi Online</p>
+                <p className="text-xs text-slate-600 font-semibold tracking-wide uppercase print:text-[6.8pt] print:leading-none">Sistem Absensi Online</p>
               </div>
             </div>
 
             <div className="text-right">
-              <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight print:text-base">
+              <h2 className="text-lg md:text-xl font-black text-slate-900 tracking-tight print:text-xs print:leading-tight">
                 {!selectedUser ? 'REKAPITULASI ABSENSI SEKOLAH' : 'REKAPITULASI ABSENSI'}
               </h2>
-              <p className="text-xs text-slate-500 font-medium print:text-[8.5px]">
+              <p className="text-xs text-slate-500 font-medium print:text-[6.8pt] print:leading-none">
                 {!selectedUser 
                   ? 'Laporan Kehadiran Seluruh Pegawai Satuan Pendidikan' 
                   : (isEmployee ? 'Dokumen Resmi Kehadiran Mandiri Si-Abon' : 'Dokumen Resmi Presensi Pegawai')}
@@ -1025,9 +1099,9 @@ export default function RecapPanel({ user }: { user: User }) {
           </div>
           
           {/* Metadata Grid */}
-          <div className="grid grid-cols-2 gap-x-8 md:gap-x-12 gap-y-2 text-xs border-t border-slate-200 pt-4 print:pt-1.5 print:gap-y-0.5 print:gap-x-6 print:border-slate-300 print:text-[8.5px]">
-            <div className="space-y-1.5 print:space-y-0.5">
-              <div className="flex justify-between border-b border-slate-100 pb-1 print:pb-0.5">
+          <div className="grid grid-cols-2 gap-x-6 md:gap-x-12 gap-y-1 text-xs border-t border-slate-200 pt-3 print:pt-1 print:gap-y-0.2 print:gap-x-4 print:border-slate-300 print:text-[7pt] print:leading-tight">
+            <div className="space-y-1 print:space-y-0">
+              <div className="flex justify-between border-b border-slate-100 pb-0.5 print:pb-0.2">
                 <span className="text-slate-500 font-medium">
                   {selectedUser ? 'Nama Pegawai' : 'Cakupan Rekap'}
                 </span>
@@ -1036,32 +1110,32 @@ export default function RecapPanel({ user }: { user: User }) {
                 </span>
               </div>
               {selectedUser && (
-                <div className="flex justify-between border-b border-slate-100 pb-1 print:pb-0.5">
+                <div className="flex justify-between border-b border-slate-100 pb-0.5 print:pb-0.2">
                   <span className="text-slate-500 font-medium">{selectedEmployeeNipType}</span>
                   <span className="font-mono font-bold text-slate-900 text-right">{selectedEmployeeNip || '-'}</span>
                 </div>
               )}
-              <div className="flex justify-between border-b border-slate-100 pb-1 print:pb-0.5">
+              <div className="flex justify-between border-b border-slate-100 pb-0.5 print:pb-0.2">
                 <span className="text-slate-500 font-medium">Unit Kerja / Sekolah</span>
                 <span className="font-bold text-slate-900 text-right">{officeName}</span>
               </div>
             </div>
 
-            <div className="space-y-1.5 print:space-y-0.5">
-              <div className="flex justify-between border-b border-slate-100 pb-1 print:pb-0.5">
+            <div className="space-y-1 print:space-y-0">
+              <div className="flex justify-between border-b border-slate-100 pb-0.5 print:pb-0.2">
                 <span className="text-slate-500 font-medium">Rentang Waktu</span>
                 <span className="font-bold text-slate-900 text-right">{periodLabel}</span>
               </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1 print:pb-0.5">
+              <div className="flex justify-between border-b border-slate-100 pb-0.5 print:pb-0.2">
                 <span className="text-slate-500 font-medium">Tanggal Cetak</span>
                 <span className="font-bold text-slate-900 text-right">
                   {new Date().toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </span>
               </div>
-              <div className="flex justify-between border-b border-slate-100 pb-1 print:pb-0.5">
+              <div className="flex justify-between border-b border-slate-100 pb-0.5 print:pb-0.2">
                 <span className="text-slate-500 font-medium">Total Catatan</span>
                 <span className="font-bold text-slate-900 text-right">
-                  {viewFormat === 'daily' ? `${dailyGroupedLogs.length} Hari Kerja (${filteredLogs.length} Log)` : `${filteredLogs.length} Baris Log`}
+                  {viewFormat === 'daily' ? `${dailyGroupedLogs.length} Hari (${filteredLogs.length} Log)` : `${filteredLogs.length} Baris Log`}
                 </span>
               </div>
             </div>
@@ -1083,25 +1157,28 @@ export default function RecapPanel({ user }: { user: User }) {
             </div>
           ) : viewFormat === 'daily' ? (
             /* FORMAT RINGKAS HARIAN (1 Baris per Hari / Terpadu) */
-            <table className="w-full text-sm text-left print:text-[8pt] print:leading-tight border-collapse">
+            <table className="w-full text-sm text-left print:text-[6.8pt] print:leading-tight border-collapse">
               <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200 print:bg-slate-100 print:text-slate-900 print:border-slate-400">
                 <tr>
-                  <th className="px-3 py-2.5 w-10 text-center print:px-1.5 print:py-1">No</th>
-                  <th className="px-3 py-2.5 print:px-1.5 print:py-1 whitespace-nowrap">Tanggal & Hari</th>
+                  <th className="px-2 py-2 w-8 text-center print:px-1 print:py-0.5 print:w-5">No</th>
+                  <th className="px-3 py-2 print:px-1 print:py-0.5 whitespace-nowrap">Tanggal & Hari</th>
                   {!filterUser && (
-                    <th className="px-3 py-2.5 print:px-1.5 print:py-1">Nama Pegawai</th>
+                    <th className="px-3 py-2 print:px-1 print:py-0.5">Nama Pegawai</th>
                   )}
-                  <th className="px-3 py-2.5 print:px-1.5 print:py-1">Absen Masuk</th>
-                  <th className="px-3 py-2.5 print:px-1.5 print:py-1">Absen Pulang</th>
-                  <th className="px-3 py-2.5 print:px-1.5 print:py-1">Keterangan / Lokasi</th>
-                  <th className="px-3 py-2.5 print:px-1.5 print:py-1 text-center">Status</th>
+                  <th className="px-3 py-2 print:px-1 print:py-0.5">Absen Masuk</th>
+                  <th className="px-3 py-2 print:px-1 print:py-0.5">Absen Pulang</th>
+                  <th className="px-3 py-2 print:px-1 print:py-0.5">Keterangan / Lokasi</th>
+                  <th className="px-3 py-2 print:px-1 print:py-0.5 text-center">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 print:divide-slate-300">
                 {dailyGroupedLogs.map((item, index) => {
                   const [y, m, d] = item.dateStr.split('-');
                   const formattedDate = `${d}/${m}/${y}`;
-                  
+                  const todayDateStr = format(new Date(), 'yyyy-MM-dd');
+                  const isPastOrToday = item.dateStr <= todayDateStr;
+                  const isFuture = item.dateStr > todayDateStr;
+
                   const isCuti = item.specialLog?.notes?.startsWith('CUTI:') || (item.specialLog?.type === 'IZIN' && item.specialLog?.notes?.startsWith('CUTI:'));
                   const isSakit = item.specialLog?.type === 'SAKIT';
                   const isIzin = item.specialLog?.type === 'IZIN' && !isCuti;
@@ -1109,29 +1186,36 @@ export default function RecapPanel({ user }: { user: User }) {
 
                   const hasValidIn = item.inLog && item.inLog.notes !== 'TIDAK ABSENSI MASUK';
                   const hasValidOut = item.outLog && item.outLog.notes !== 'TIDAK ABSENSI PULANG';
+                  const hasPiket = item.piketLogs.length > 0;
+                  const hasAttendance = hasValidIn || hasValidOut || hasPiket || Boolean(item.specialLog);
+
+                  // Off-day check (Saturday, Sunday, scheduled Day Off or Holiday without actual attendance)
+                  const isOffDay = (item.isWeekendOrDayOff || item.isHoliday) && !hasAttendance;
 
                   return (
                     <tr 
                       key={`${item.userId}-${item.dateStr}`} 
-                      className="hover:bg-slate-50/60 print:hover:bg-transparent break-inside-avoid"
+                      className={`hover:bg-slate-50/60 print:hover:bg-transparent break-inside-avoid ${
+                        isOffDay ? 'bg-slate-50/50 print:bg-slate-50/20' : ''
+                      }`}
                     >
                       {/* Nomor Urut */}
-                      <td className="px-3 py-2 text-center text-xs text-slate-400 font-mono print:px-1.5 print:py-1 print:text-slate-800">
+                      <td className="px-2 py-1.5 text-center text-xs text-slate-400 font-mono print:px-1 print:py-0.5 print:text-[6.8pt] print:text-slate-800">
                         {index + 1}
                       </td>
 
                       {/* Tanggal & Hari */}
-                      <td className="px-3 py-2 font-mono text-slate-700 print:px-1.5 print:py-1 print:text-slate-900 whitespace-nowrap">
-                        <div className="font-semibold text-slate-900">{formattedDate}</div>
-                        <div className="text-[10px] text-slate-500 print:text-[7.5pt]">{item.dayName}</div>
+                      <td className="px-3 py-1.5 font-mono text-slate-700 print:px-1 print:py-0.5 print:text-[6.8pt] print:text-slate-900 whitespace-nowrap">
+                        <span className="font-semibold text-slate-900">{formattedDate}</span>
+                        <span className="text-[10px] text-slate-500 print:text-[6.5pt] ml-1">({item.dayName})</span>
                       </td>
 
                       {/* Nama Pegawai (jika Semua Pegawai dipilih) */}
                       {!filterUser && (
-                        <td className="px-3 py-2 print:px-1.5 print:py-1">
-                          <div className="font-bold text-slate-900 leading-tight">{item.userName}</div>
+                        <td className="px-3 py-1.5 print:px-1 print:py-0.5">
+                          <div className="font-bold text-slate-900 leading-tight print:text-[6.8pt]">{item.userName}</div>
                           {item.userNip && (
-                            <div className="text-[10px] text-slate-400 print:text-slate-600 font-mono">
+                            <div className="text-[10px] text-slate-400 print:text-slate-600 font-mono print:text-[6pt]">
                               {item.userNipType || 'NIP'}: {item.userNip}
                             </div>
                           )}
@@ -1139,87 +1223,77 @@ export default function RecapPanel({ user }: { user: User }) {
                       )}
 
                       {/* Absen Masuk */}
-                      <td className="px-3 py-2 print:px-1.5 print:py-1">
-                        {item.specialLog ? (
-                          <span className="text-teal-700 font-semibold text-xs print:text-[8pt]">
+                      <td className="px-3 py-1.5 print:px-1 print:py-0.5">
+                        {isOffDay ? (
+                          <span className="text-slate-400 font-semibold print:text-slate-500 print:text-[6.8pt]">-</span>
+                        ) : item.specialLog ? (
+                          <span className="text-teal-700 font-semibold text-xs print:text-[6.8pt]">
                             {isCuti ? 'CUTI' : isSakit ? 'SAKIT' : isIzin ? 'IZIN' : 'TUGAS'}
                           </span>
                         ) : item.inLog ? (
-                          <div>
-                            {item.inLog.notes === 'TIDAK ABSENSI MASUK' ? (
-                              <>
-                                <div className="font-mono font-semibold text-slate-400">-</div>
-                                <div className="text-[10px] print:text-[7.5pt]">
-                                  <span className="text-red-600 font-semibold">Tidak Hadir</span>
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="font-mono font-semibold text-slate-900">
-                                  {format(new Date(item.inLog.timestamp), 'HH:mm:ss')}
-                                </div>
-                                <div className="text-[10px] print:text-[7.5pt]">
-                                  {item.inLog.is_late ? (
-                                    <span className="text-red-600 font-semibold">
-                                      {item.inLog.notes?.startsWith('PIKET:') ? 'Terlambat (Piket)' : 'Terlambat'}
-                                    </span>
-                                  ) : (
-                                    <span className="text-emerald-700 font-semibold">
-                                      {item.inLog.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
-                                    </span>
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
+                          item.inLog.notes === 'TIDAK ABSENSI MASUK' ? (
+                            <span className="text-slate-400 font-semibold print:text-slate-500 print:text-[6.8pt]">-</span>
+                          ) : (
+                            <div className="font-mono font-semibold text-slate-900 print:text-[6.8pt] print:leading-tight">
+                              {format(new Date(item.inLog.timestamp), 'HH:mm:ss')}
+                              <div className="text-[10px] print:hidden">
+                                {item.inLog.is_late ? (
+                                  <span className="text-red-600 font-semibold">
+                                    {item.inLog.notes?.startsWith('PIKET:') ? 'Terlambat (Piket)' : 'Terlambat'}
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-700 font-semibold">
+                                    {item.inLog.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )
                         ) : (
-                          <span className="text-slate-400 italic text-xs">-</span>
+                          <span className="text-slate-400 italic text-xs print:text-[6.8pt]">-</span>
                         )}
                       </td>
 
                       {/* Absen Pulang */}
-                      <td className="px-3 py-2 print:px-1.5 print:py-1">
-                        {item.specialLog ? (
-                          <span className="text-teal-700 font-semibold text-xs print:text-[8pt]">
+                      <td className="px-3 py-1.5 print:px-1 print:py-0.5">
+                        {isOffDay ? (
+                          <span className="text-slate-400 font-semibold print:text-slate-500 print:text-[6.8pt]">-</span>
+                        ) : item.specialLog ? (
+                          <span className="text-teal-700 font-semibold text-xs print:text-[6.8pt]">
                             {isCuti ? 'CUTI' : isSakit ? 'SAKIT' : isIzin ? 'IZIN' : 'TUGAS'}
                           </span>
                         ) : item.outLog ? (
-                          <div>
-                            {item.outLog.notes === 'TIDAK ABSENSI PULANG' ? (
-                              <>
-                                <div className="font-mono font-semibold text-slate-400">-</div>
-                                <div className="text-[10px] print:text-[7.5pt]">
-                                  <span className="text-red-600 font-semibold">Tidak Hadir</span>
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="font-mono font-semibold text-slate-900">
-                                  {format(new Date(item.outLog.timestamp), 'HH:mm:ss')}
-                                </div>
-                                <div className="text-[10px] print:text-[7.5pt]">
-                                  {item.outLog.is_late ? (
-                                    <span className="text-orange-600 font-semibold">
-                                      {item.outLog.notes?.startsWith('PIKET:') ? 'Mendahului (Piket)' : 'Mendahului'}
-                                    </span>
-                                  ) : (
-                                    <span className="text-emerald-700 font-semibold">
-                                      {item.outLog.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
-                                    </span>
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
+                          item.outLog.notes === 'TIDAK ABSENSI PULANG' ? (
+                            <span className="text-slate-400 font-semibold print:text-slate-500 print:text-[6.8pt]">-</span>
+                          ) : (
+                            <div className="font-mono font-semibold text-slate-900 print:text-[6.8pt] print:leading-tight">
+                              {format(new Date(item.outLog.timestamp), 'HH:mm:ss')}
+                              <div className="text-[10px] print:hidden">
+                                {item.outLog.is_late ? (
+                                  <span className="text-orange-600 font-semibold">
+                                    {item.outLog.notes?.startsWith('PIKET:') ? 'Mendahului (Piket)' : 'Mendahului'}
+                                  </span>
+                                ) : (
+                                  <span className="text-emerald-700 font-semibold">
+                                    {item.outLog.notes?.startsWith('PIKET:') ? 'Tepat Waktu (Piket)' : 'Tepat Waktu'}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )
                         ) : (
-                          <span className="text-slate-400 italic text-xs">-</span>
+                          <span className="text-slate-400 italic text-xs print:text-[6.8pt]">-</span>
                         )}
                       </td>
 
                       {/* Keterangan / Lokasi */}
-                      <td className="px-3 py-2 print:px-1.5 print:py-1 text-xs print:text-[7.5pt]">
-                        {isCuti ? (
-                          <div className="font-semibold text-teal-800 print:text-slate-900">
+                      <td className="px-3 py-1.5 print:px-1 print:py-0.5 text-xs print:text-[6.8pt]">
+                        {isOffDay ? (
+                          <span className="font-medium text-slate-600 print:text-slate-700 print:text-[6.8pt]">
+                            {item.isHoliday ? (item.holidayName || 'Libur Nasional') : 'Libur Jadwal Kerja'}
+                          </span>
+                        ) : isCuti ? (
+                          <div className="font-semibold text-teal-800 print:text-slate-900 print:text-[6.8pt]">
                             {(() => {
                               const raw = item.specialLog?.notes || item.notes.find(n => n.toUpperCase().startsWith('CUTI:')) || '';
                               if (raw.toUpperCase().startsWith('CUTI:')) {
@@ -1229,22 +1303,40 @@ export default function RecapPanel({ user }: { user: User }) {
                               return raw ? `Cuti: ${raw}` : 'Cuti';
                             })()}
                           </div>
+                        ) : isSakit ? (
+                          <span className="font-medium text-rose-800 print:text-slate-900 print:text-[6.8pt]">
+                            {item.specialLog?.notes || 'Sakit'}
+                          </span>
+                        ) : isIzin ? (
+                          <span className="font-medium text-amber-800 print:text-slate-900 print:text-[6.8pt]">
+                            {item.specialLog?.notes || 'Izin'}
+                          </span>
+                        ) : isTugas ? (
+                          <span className="font-medium text-sky-800 print:text-slate-900 print:text-[6.8pt]">
+                            Perintah Tugas
+                          </span>
+                        ) : !hasAttendance && isPastOrToday ? (
+                          <span className="font-medium text-red-600 print:text-red-700 print:text-[6.8pt]">
+                            Tidak Hadir
+                          </span>
+                        ) : !hasAttendance && isFuture ? (
+                          <span className="text-slate-400 font-mono print:text-[6.8pt]">-</span>
                         ) : (
                           <>
-                            <div className="font-semibold text-slate-800 print:text-slate-900">
+                            <div className="font-semibold text-slate-800 print:text-slate-900 print:text-[6.8pt]">
                               {item.officeName || officeName}
                             </div>
                             {item.piketLogs.length > 0 && (
-                              <div className="mt-0.5">
-                                <span className="inline-block px-1.5 py-0 bg-indigo-50 text-indigo-700 rounded text-[9px] font-semibold border border-indigo-200 print:border-slate-300">
+                              <div className="mt-0.5 print:hidden">
+                                <span className="inline-block px-1.5 py-0 bg-indigo-50 text-indigo-700 rounded text-[9px] font-semibold border border-indigo-200">
                                   Piket
                                 </span>
                               </div>
                             )}
                             {item.notes.length > 0 && (
-                              <div className="space-y-0.5 mt-0.5">
+                              <div className="space-y-0.5 mt-0.5 print:hidden">
                                 {item.notes.map((note, nIdx) => (
-                                  <div key={nIdx} className="text-slate-500 italic text-[10px] print:text-[7pt]">
+                                  <div key={nIdx} className="text-slate-500 italic text-[10px]">
                                     "{note}"
                                   </div>
                                 ))}
@@ -1255,37 +1347,45 @@ export default function RecapPanel({ user }: { user: User }) {
                       </td>
 
                       {/* Status Kehadiran */}
-                      <td className="px-3 py-2 print:px-1.5 print:py-1 text-center whitespace-nowrap">
-                        {isCuti ? (
-                          <span className="px-2 py-0.5 bg-teal-50 text-teal-700 rounded text-xs font-bold border border-teal-200 print:text-[7.5pt] print:border-slate-400">
+                      <td className="px-3 py-1.5 print:px-1 print:py-0.5 text-center whitespace-nowrap">
+                        {isOffDay ? (
+                          <span className="px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-semibold print:text-[6.5pt] print:bg-transparent print:border print:border-slate-300">
+                            Libur
+                          </span>
+                        ) : isCuti ? (
+                          <span className="px-1.5 py-0.5 bg-teal-50 text-teal-700 rounded text-xs font-bold border border-teal-200 print:text-[6.5pt] print:border-slate-400">
                             Cuti
                           </span>
                         ) : isSakit ? (
-                          <span className="px-2 py-0.5 bg-rose-50 text-rose-700 rounded text-xs font-bold border border-rose-200 print:text-[7.5pt] print:border-slate-400">
+                          <span className="px-1.5 py-0.5 bg-rose-50 text-rose-700 rounded text-xs font-bold border border-rose-200 print:text-[6.5pt] print:border-slate-400">
                             Sakit
                           </span>
                         ) : isIzin ? (
-                          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-bold border border-amber-200 print:text-[7.5pt] print:border-slate-400">
+                          <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-bold border border-amber-200 print:text-[6.5pt] print:border-slate-400">
                             Izin
                           </span>
                         ) : isTugas ? (
-                          <span className="px-2 py-0.5 bg-sky-50 text-sky-700 rounded text-xs font-bold border border-sky-200 print:text-[7.5pt] print:border-slate-400">
+                          <span className="px-1.5 py-0.5 bg-sky-50 text-sky-700 rounded text-xs font-bold border border-sky-200 print:text-[6.5pt] print:border-slate-400">
                             Tugas
                           </span>
                         ) : hasValidIn && hasValidOut ? (
-                          <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs font-bold border border-emerald-200 print:text-[7.5pt] print:border-slate-400">
+                          <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded text-xs font-bold border border-emerald-200 print:text-[6.5pt] print:border-slate-400">
                             {item.piketLogs.length > 0 ? 'Piket Lengkap' : 'Hadir Lengkap'}
                           </span>
                         ) : hasValidIn ? (
-                          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-bold border border-amber-200 print:text-[7.5pt] print:border-slate-400">
+                          <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-bold border border-amber-200 print:text-[6.5pt] print:border-slate-400">
                             {item.piketLogs.length > 0 ? 'Piket Masuk' : 'Hadir Masuk'}
                           </span>
                         ) : hasValidOut ? (
-                          <span className="px-2 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-bold border border-amber-200 print:text-[7.5pt] print:border-slate-400">
+                          <span className="px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded text-xs font-bold border border-amber-200 print:text-[6.5pt] print:border-slate-400">
                             {item.piketLogs.length > 0 ? 'Piket Pulang' : 'Hadir Pulang'}
                           </span>
+                        ) : !hasAttendance && isPastOrToday ? (
+                          <span className="px-1.5 py-0.5 bg-red-50 text-red-700 rounded text-xs font-bold border border-red-200 print:text-[6.5pt] print:border-slate-400">
+                            Tidak Hadir
+                          </span>
                         ) : (
-                          <span className="px-2 py-0.5 bg-slate-50 text-slate-700 rounded text-xs font-bold border border-slate-200 print:text-[7.5pt] print:border-slate-400">
+                          <span className="px-1.5 py-0.5 bg-slate-50 text-slate-700 rounded text-xs font-bold border border-slate-200 print:text-[6.5pt] print:border-slate-400">
                             -
                           </span>
                         )}
@@ -1497,20 +1597,20 @@ export default function RecapPanel({ user }: { user: User }) {
         </div>
 
         {/* TANDA TANGAN RESMI KEDINASAN / SEKOLAH (Print Footer) */}
-        <div className="hidden print:grid grid-cols-2 gap-8 mt-6 px-8 pb-4 break-inside-avoid text-center">
+        <div className="hidden print:grid grid-cols-2 gap-4 mt-2 px-6 pb-0 break-inside-avoid text-center">
           {/* Pihak 1 (Kiri): Atasan Langsung / Kepala Sekolah */}
           <div className="flex flex-col items-center">
-            <div className="h-10 flex flex-col justify-end items-center">
-              <p className="text-[9pt] text-slate-700 leading-tight">Mengetahui,</p>
-              <p className="text-[9pt] text-slate-700 font-medium leading-tight">Kepala Sekolah / Atasan Langsung</p>
+            <div className="h-7 flex flex-col justify-end items-center">
+              <p className="text-[7.5pt] text-slate-700 leading-tight">Mengetahui,</p>
+              <p className="text-[7.5pt] text-slate-700 font-medium leading-tight">Kepala Sekolah / Atasan Langsung</p>
             </div>
-            <div className="h-14"></div>
+            <div className="h-8"></div>
             <div className="w-full flex flex-col items-center">
-              <div className="border-b border-slate-900 w-52 mb-1"></div>
-              <p className="text-[10pt] font-bold text-slate-900 leading-tight">
+              <div className="border-b border-slate-900 w-44 mb-0.5"></div>
+              <p className="text-[8pt] font-bold text-slate-900 leading-tight">
                 {headmaster ? headmaster.name : '__________________________'}
               </p>
-              <p className="text-[8pt] text-slate-600 font-mono leading-tight mt-0.5">
+              <p className="text-[7pt] text-slate-600 font-mono leading-tight mt-0.5">
                 {headmaster?.nip_type || 'NIP'}: {headmaster?.nip || '__________________________'}
               </p>
             </div>
@@ -1518,18 +1618,18 @@ export default function RecapPanel({ user }: { user: User }) {
 
           {/* Pihak 2 (Kanan): Pegawai yang bersangkutan */}
           <div className="flex flex-col items-center">
-            <div className="h-10 flex flex-col justify-end items-center">
-              <p className="text-[9pt] text-slate-700 font-medium leading-tight">
+            <div className="h-7 flex flex-col justify-end items-center">
+              <p className="text-[7.5pt] text-slate-700 font-medium leading-tight">
                 {selectedUser ? 'Pegawai yang bersangkutan,' : 'Dibuat & Diverifikasi oleh,'}
               </p>
             </div>
-            <div className="h-14"></div>
+            <div className="h-8"></div>
             <div className="w-full flex flex-col items-center">
-              <div className="border-b border-slate-900 w-52 mb-1"></div>
-              <p className="text-[10pt] font-bold text-slate-900 leading-tight">
+              <div className="border-b border-slate-900 w-44 mb-0.5"></div>
+              <p className="text-[8pt] font-bold text-slate-900 leading-tight">
                 {selectedUser ? selectedUser.name : user.name}
               </p>
-              <p className="text-[8pt] text-slate-600 font-mono leading-tight mt-0.5">
+              <p className="text-[7pt] text-slate-600 font-mono leading-tight mt-0.5">
                 {selectedUser ? (
                   <>{selectedEmployeeNipType}: {selectedEmployeeNip || '____________________'}</>
                 ) : (

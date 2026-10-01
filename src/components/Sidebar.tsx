@@ -69,7 +69,12 @@ export default function Sidebar({ user, offices, onLogout, activeTab, setActiveT
     { id: 'correction', label: 'Lupa Absen', icon: ClipboardPen, roles: ['employee', 'admin', 'headmaster', 'dinas', 'super_admin'] },
     { id: 'leave', label: 'Cuti', icon: CalendarDays, roles: ['employee', 'admin', 'headmaster', 'dinas', 'super_admin'] },
     { id: 'history', label: 'Riwayat', icon: History, roles: ['employee', 'admin', 'headmaster', 'dinas', 'super_admin'] },
-    { id: 'recap', label: 'Rekap Laporan', icon: FileSpreadsheet, roles: ['admin', 'headmaster', 'dinas', 'super_admin'] },
+    { 
+      id: 'recap', 
+      label: user.role === 'employee' ? 'Cetak Rekap' : 'Rekap Laporan', 
+      icon: FileSpreadsheet, 
+      roles: ['employee', 'admin', 'headmaster', 'dinas', 'super_admin'] 
+    },
     { id: 'settings', label: 'Pengaturan Kantor', icon: SettingsIcon, roles: ['admin', 'super_admin'] },
   ];
 

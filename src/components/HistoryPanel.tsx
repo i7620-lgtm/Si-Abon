@@ -2,8 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { User, AttendanceLog } from '../types';
 import { format } from 'date-fns';
+import { Printer } from 'lucide-react';
 
-export default function HistoryPanel({ user }: { user: User }) {
+interface HistoryPanelProps {
+  user: User;
+  setActiveTab?: (tab: string) => void;
+}
+
+export default function HistoryPanel({ user, setActiveTab }: HistoryPanelProps) {
   const [logs, setLogs] = useState<AttendanceLog[]>([]);
 
   useEffect(() => {
@@ -12,7 +18,21 @@ export default function HistoryPanel({ user }: { user: User }) {
 
   return (
     <div className="p-6 h-full overflow-y-auto">
-      <h2 className="text-xl font-bold text-slate-800 mb-6">Riwayat Absensi</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 className="text-xl font-bold text-slate-800">Riwayat Absensi</h2>
+          <p className="text-xs text-slate-500">Daftar kehadiran dan catatan presensi Anda</p>
+        </div>
+        {setActiveTab && (
+          <button
+            onClick={() => setActiveTab('recap')}
+            className="flex items-center gap-2 px-3.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-xl text-xs font-bold border border-emerald-200 transition-colors shadow-sm self-start sm:self-auto"
+          >
+            <Printer size={15} />
+            <span>Cetak Rekap Absensi</span>
+          </button>
+        )}
+      </div>
       <div className="space-y-4">
         {logs.length === 0 && <p className="text-slate-500">Belum ada data absensi.</p>}
         {logs.map(log => (

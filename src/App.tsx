@@ -406,9 +406,9 @@ export default function App() {
         {activeTab === 'attendance' && <AttendancePanel user={user} />}
         {activeTab === 'correction' && <CorrectionPanel user={user} />}
         {activeTab === 'leave' && <LeavePanel user={user} />}
-        {activeTab === 'history' && <HistoryPanel user={user} />}
+        {activeTab === 'history' && <HistoryPanel user={user} setActiveTab={setActiveTab} />}
         {activeTab === 'settings' && (user.role === 'admin' || user.role === 'super_admin') && <SettingsPanel user={user} onUserUpdate={loadUsers} />}
-        {activeTab === 'recap' && ['admin', 'headmaster', 'dinas', 'super_admin'].includes(user.role) && <RecapPanel user={user} />}
+        {activeTab === 'recap' && <RecapPanel user={user} />}
       </main>
     </div>
   );
